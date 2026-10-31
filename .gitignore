@@ -1,0 +1,14 @@
+# Zoho Catalyst Logs & Cache
+catalyst-debug.log
+.catalyst/
+client/.catalyst/
+
+# Temporary and test scratch files
+scratch/
+
+# Operating system files
+Thumbs.db
+.DS_Store
+
+# Node dependencies
+node_modules/
