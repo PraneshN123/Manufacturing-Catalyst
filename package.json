@@ -2,10 +2,10 @@
   "name": "manufacturing-catalyst",
   "version": "1.0.0",
   "description": "Manufacturing Catalyst - Material Master Standardization & AI Taxonomy Governance Platform on Zoho Catalyst",
-  "main": "client/index.html",
+  "main": "dist/index.html",
   "scripts": {
-    "start": "catalyst serve",
-    "build": "echo \"Build complete\""
+    "build": "node build.js",
+    "start": "catalyst serve"
   },
   "keywords": [
     "zoho",

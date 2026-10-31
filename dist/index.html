@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IIH Material Master Report - Manufacturing Catalyst</title>
+    <meta name="description" content="IIH Material Master Report - Industrial Material Standardization, Noun & Modifier Assignment, and AI Engineering Enrichment on Zoho Catalyst.">
+    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <!-- Zoho Catalyst Web Client SDK -->
+    <script src="https://static.zohocdn.com/catalyst/sdk/js/4.0.0/catalyst.js" onerror="console.info('Catalyst SDK script unavailable offline; operating in dynamic client adapter mode.')"></script>
+    <!-- Main Stylesheet -->
+    <link rel="stylesheet" type="text/css" media="screen" href="main.css?v=7.17.0" />
+</head>
+<body>
+    <div class="app-container" id="app">
+        <!-- TOP NAVIGATION BAR -->
+        <header class="top-nav" id="topNav">
+            <div class="nav-left">
+                <!-- Document Icon -->
+                <div class="brand-icon" title="Material Master">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M14 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2Z" fill="#2563eb" stroke="#3b82f6" stroke-width="1.5" stroke-linejoin="round"/>
+                        <path d="M14 2V8H20" fill="#60a5fa" stroke="#3b82f6" stroke-width="1.5" stroke-linejoin="round"/>
+                        <path d="M8 13H16" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
+                        <path d="M8 17H13" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </div>
+                <h1 class="brand-title">IIH Material Master Report</h1>
+                
+                <!-- Workbench Badge -->
+                <div class="workbench-badge" id="workbenchBadge" title="Active Workbench Session">
+                    <div class="wb-icon-circle">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                        </svg>
+                    </div>
+                    <span class="wb-text">WorkBenchID-01</span>
+                    <svg class="wb-arrow" viewBox="0 0 20 20" width="12" height="12" fill="currentColor">
+                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Search Bar -->
+            <div class="nav-center">
+                <div class="search-box-wrapper">
+                    <svg class="search-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    <input type="text" id="searchInput" placeholder="Search records..." autocomplete="off" spellcheck="false" />
+                    <button class="search-clear-btn" id="searchClearBtn" title="Clear search" style="display: none;">
+                        &times;
+                    </button>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="nav-right">
+                <!-- Assign Noun & Modifier Button -->
+                <button class="nav-btn btn-assign-nm" id="btnTopAssignNM">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                        <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+                    </svg>
+                    <span>Assign Noun &amp; Modifier</span>
+                </button>
+
+                <!-- View NM Button -->
+                <button class="nav-btn btn-view-nm" id="btnTopViewNM">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                        <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+                    </svg>
+                    <span>View NM</span>
+                </button>
+
+                <!-- Logged In User Profile Badge -->
+                <div class="user-profile-badge" id="userProfileBadge" title="Logged in as Pranesh N (pranesh@rcidigital.com)">
+                    <div class="user-avatar-circle">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                        </svg>
+                    </div>
+                    <span class="user-email-text" id="navUserEmail">pranesh@rcidigital.com</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- MAIN TABLE AREA (STRICT FIXED LAYOUT) -->
+        <main class="table-container" id="tableContainer">
+            <div class="table-wrapper" id="tableWrapper">
+                <table class="report-table" id="reportTable">
+                    <!-- Strict Column Specifications -->
+                    <colgroup>
+                        <col class="col-w-checkbox" style="width: 46px;">
+                        <col class="col-w-sno" style="width: 55px;">
+                        <col class="col-w-oem" style="width: 140px;">
+                        <col class="col-w-desc" style="width: auto; min-width: 270px;">
+                        <col class="col-w-noun" style="width: 120px;">
+                        <col class="col-w-modifier" style="width: 230px;">
+                        <col class="col-w-actions" style="width: 260px;">
+                    </colgroup>
+                    <thead>
+                        <tr>
+                            <th class="col-checkbox">
+                                <label class="custom-checkbox">
+                                    <input type="checkbox" id="selectAllCheckbox" />
+                                    <span class="checkmark"></span>
+                                </label>
+                            </th>
+                            <th class="col-sno">S.NO</th>
+                            <th class="col-oem">
+                                <span class="th-content">
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                                        <path d="M22 22H2V10l7-3v4l7-3v4l6-3v10zm-9-8v-2l-2 1v2l2-1zm-7 3v-2l-2 1v2l2-1zm14-1v-2l-2 1v2l2-1z"/>
+                                    </svg>
+                                    OEM/NON OEM
+                                </span>
+                            </th>
+                            <th class="col-desc">
+                                <span class="th-content">
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                                        <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/>
+                                    </svg>
+                                    DESCRIPTION
+                                </span>
+                            </th>
+                            <th class="col-noun">
+                                <span class="th-content">
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                                        <path d="M17.63 5.84C17.27 5.33 16.67 5 16 5L5 5.01C3.9 5.01 3 5.9 3 7v10c0 1.1.9 1.99 2 1.99L16 19c.67 0 1.27-.33 1.63-.84L22 12l-4.37-6.16zM16 17H5V7h11l3.55 5L16 17z"/>
+                                    </svg>
+                                    NOUN
+                                </span>
+                            </th>
+                            <th class="col-modifier">
+                                <span class="th-content">
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                                        <path d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z"/>
+                                    </svg>
+                                    NOUN &amp; MODIFIER
+                                </span>
+                            </th>
+                            <th class="col-actions">
+                                <span class="th-content">
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                                        <path d="M7 2v11h3v9l7-12h-4l4-8z"/>
+                                    </svg>
+                                    ACTIONS
+                                </span>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        <!-- Populated Dynamically from Catalyst Data Store -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- TABLE FOOTER PAGINATION (STRICT FIXED) -->
+            <div class="table-footer">
+                <div class="footer-left">
+                    <span class="page-size-label">Rows per page:</span>
+                    <select id="pageSizeSelect" class="page-size-select">
+                        <option value="100" selected>100</option>
+                        <option value="500">500</option>
+                        <option value="1000">1000</option>
+                    </select>
+                </div>
+                <div class="footer-right">
+                    <button class="page-nav-btn" id="btnFirstPage" title="First Page">&laquo;</button>
+                    <button class="page-nav-btn" id="btnPrevPage" title="Previous Page">&lsaquo;</button>
+                    <span class="page-indicator" id="pageIndicator">Page 1 of 1</span>
+                    <button class="page-nav-btn" id="btnNextPage" title="Next Page">&rsaquo;</button>
+                    <button class="page-nav-btn" id="btnLastPage" title="Last Page">&raquo;</button>
+                </div>
+            </div>
+        </main>
+
+        <!-- FLOATING BULK ACTIONS BAR -->
+        <div class="floating-bulk-bar" id="floatingBulkBar">
+            <div class="bulk-info">
+                <span class="bulk-count" id="bulkCountText">0</span>
+                <span>items selected</span>
+            </div>
+            <div class="bulk-actions">
+                <button class="bulk-btn bulk-btn-assign" id="bulkBtnAssign">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
+                    Assign Noun/Modifier
+                </button>
+                <button class="bulk-btn bulk-btn-ai" id="bulkBtnAI">
+                    <svg class="ai-sparkle-icon" viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                        <path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z"/>
+                    </svg>
+                    Auto Enrich with AI
+                </button>
+                <button class="bulk-btn bulk-btn-export" id="bulkBtnExport">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                    Export Selected
+                </button>
+                <button class="bulk-btn-close" id="bulkBtnClose" title="Clear Selection">&times;</button>
+            </div>
+        </div>
+
+        <!-- ==================== MODALS ==================== -->
+
+        <!-- MODAL: CATALYST DATA SOURCE / SYNC CONNECTOR -->
+        <div class="modal-overlay" id="catalystSourceModal">
+            <div class="modal-card modal-lg">
+                <div class="modal-header">
+                    <div class="modal-title-group">
+                        <div class="modal-icon-badge badge-blue">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6z"/></svg>
+                        </div>
+                        <div>
+                            <h2 class="modal-title">Catalyst Dynamic Data Connector</h2>
+                            <p class="modal-subtitle">Sync from Zoho Catalyst Data Store, ZCQL, or Serverless API</p>
+                        </div>
+                    </div>
+                    <button class="modal-close-btn" data-close="catalystSourceModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="connector-status-bar">
+                        <div class="connector-stat">
+                            <span class="connector-stat-label">Catalyst Project ID</span>
+                            <span class="connector-stat-value">23815000000022001 (ManufacturingAI)</span>
+                        </div>
+                        <div class="connector-stat">
+                            <span class="connector-stat-label">SDK Connection</span>
+                            <span class="connector-stat-value" id="sdkStatusText">Checking SDK...</span>
+                        </div>
+                    </div>
+
+                    <div class="form-section-title">Select Catalyst Data Source Mode</div>
+
+                    <div class="data-mode-tabs">
+                        <button class="tab-btn active" data-mode="zcql">ZCQL / Table Query</button>
+                        <button class="tab-btn" data-mode="api">Catalyst Function API</button>
+                        <button class="tab-btn" data-mode="paste">JSON Direct Load</button>
+                    </div>
+
+                    <!-- Mode 1: ZCQL -->
+                    <div class="tab-content" id="tabModeZcql">
+                        <div class="form-group" style="margin-bottom: 12px;">
+                            <label>Catalyst Data Store Table Name</label>
+                            <input type="text" id="catalystTableNameInput" class="form-control" value="UserData" placeholder="e.g. UserData or Library" />
+                        </div>
+                        <div class="form-group" style="margin-bottom: 14px;">
+                            <label>ZCQL Query (Zoho Catalyst Query Language)</label>
+                            <textarea id="catalystZcqlInput" class="form-control font-mono" rows="2" placeholder="SELECT * FROM UserData">SELECT ROWID, Discription, Noun, Modifier, Noun_Modifier, OEM_Category, NM_Status, NM_Count, Batches, Workbenchid FROM UserData</textarea>
+                        </div>
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            <button class="btn btn-primary btn-blue" id="btnExecuteZcql">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                                Execute Catalyst Query
+                            </button>
+                            <button class="btn btn-primary btn-blue" id="btnLoadUserDataCsv">
+                                Load User Data (10,884 Records)
+                            </button>
+                            <button class="btn btn-secondary" id="btnLoadLibraryTable">
+                                Load Library Table (12,841 Records)
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Mode 2: Function API -->
+                    <div class="tab-content" id="tabModeApi" style="display: none;">
+                        <div class="form-group" style="margin-bottom: 14px;">
+                            <label>Catalyst Serverless Function Endpoint</label>
+                            <input type="text" id="catalystApiUrlInput" class="form-control" value="/server/material_service/records" placeholder="e.g. /server/material_service/records" />
+                        </div>
+                        <button class="btn btn-primary btn-blue" id="btnFetchApi">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46A7.93 7.93 0 0020 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74A7.93 7.93 0 004 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg>
+                            Fetch from Catalyst API
+                        </button>
+                    </div>
+
+                    <!-- Mode 3: Direct JSON Load -->
+                    <div class="tab-content" id="tabModePaste" style="display: none;">
+                        <div class="form-group" style="margin-bottom: 14px;">
+                            <label>Paste Catalyst Records Array (JSON)</label>
+                            <textarea id="catalystJsonPaste" class="form-control font-mono" rows="6" placeholder='[{"sno": 1, "oem": "NON OEM", "description": "Torque Wrench...", "noun": "WRENCH", "modifier": "--"}]'></textarea>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn btn-primary btn-blue" id="btnLoadPastedJson">Load Pasted JSON</button>
+                            <button class="btn btn-secondary" id="btnLoadScreenshotPreset">Load Reference Template (8 Exact Screenshot Items)</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" id="btnClearCurrentData">Clear Loaded Data</button>
+                    <button class="btn btn-secondary" data-close="catalystSourceModal">Close</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL: ASSIGN NOUN & MODIFIER -->
+        <div class="modal-overlay" id="assignModal">
+            <div class="modal-card modal-lg">
+                <div class="modal-header">
+                    <div class="modal-title-group">
+                        <div class="modal-icon-badge badge-orange">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+                        </div>
+                        <div>
+                            <h2 class="modal-title">Assign Noun &amp; Modifier</h2>
+                            <p class="modal-subtitle">Industrial MRO Taxonomy Standardization</p>
+                        </div>
+                    </div>
+                    <button class="modal-close-btn" data-close="assignModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="target-item-card" id="assignTargetCard">
+                        <div class="target-badge">TARGET ITEM #<span id="assignTargetSno">1</span></div>
+                        <div class="target-desc" id="assignTargetDesc">Material Description</div>
+                    </div>
+
+                    <!-- LIVE LIBRARY DATA PROBABILITY ANALYSIS CARD -->
+                    <div class="probability-analysis-card" id="probabilityAnalysisCard">
+                        <div class="prob-scanner-sweep"></div>
+                        <div class="prob-header">
+                            <div class="prob-header-left">
+                                <div class="prob-icon-pulse">
+                                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                                        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <span class="prob-title">Library Data Probability Analysis</span>
+                                    <span class="prob-subtitle" id="probSubtitle">Analyzed against 12,841 Library records &amp; taxonomy master</span>
+                                </div>
+                            </div>
+                            <div class="prob-badge-high" id="probTopBadge">
+                                <span class="pulse-dot"></span>
+                                <span id="probTopBadgeText">96% Top Match</span>
+                            </div>
+                        </div>
+
+                        <div class="prob-content-grid">
+                            <!-- Noun Probability Candidates -->
+                            <div class="prob-column">
+                                <div class="prob-col-label">
+                                    <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                                    <span>Noun Probabilities (Library Match)</span>
+                                </div>
+                                <div class="prob-chips-container" id="nounProbabilityChips">
+                                    <!-- Populated dynamically -->
+                                </div>
+                            </div>
+
+                            <!-- Modifier Probability Candidates -->
+                            <div class="prob-column">
+                                <div class="prob-col-label">
+                                    <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                                    <span>Modifier Probabilities (Library Match)</span>
+                                </div>
+                                <div class="prob-chips-container" id="modifierProbabilityChips">
+                                    <!-- Populated dynamically -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="prob-footer-info" id="probFooterInfo">
+                            <span class="prob-ref-icon">💡</span>
+                            <span id="probRefText">Click any probability chip above to instantly assign and update taxonomy attributes.</span>
+                        </div>
+                    </div>
+
+                    <div class="form-grid form-grid-3">
+                        <div class="form-group">
+                            <label for="assignOemSelect">OEM Category <span class="req">*</span></label>
+                            <select id="assignOemSelect" class="form-control">
+                                <option value="NON OEM">NON OEM</option>
+                                <option value="OEM">OEM</option>
+                                <option value="--">-- (Pending)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="assignNounSelect">Primary Noun <span class="req">*</span></label>
+                            <select id="assignNounSelect" class="form-control">
+                                <option value="WRENCH" selected>WRENCH</option>
+                                <option value="VALVE">VALVE</option>
+                                <option value="PUMP">PUMP</option>
+                                <option value="BEARING">BEARING</option>
+                                <option value="GASKET">GASKET</option>
+                                <option value="FASTENER">FASTENER</option>
+                                <option value="FLANGE">FLANGE</option>
+                                <option value="MOTOR">MOTOR</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="assignModifierSelect">Modifier <span class="req">*</span></label>
+                            <select id="assignModifierSelect" class="form-control">
+                                <option value="TORQUE" selected>TORQUE</option>
+                                <option value="INSULATED">INSULATED</option>
+                                <option value="OPEN END">OPEN END</option>
+                                <option value="ADJUSTABLE">ADJUSTABLE</option>
+                                <option value="HAMMERING">HAMMERING</option>
+                                <option value="COMBINATION">COMBINATION</option>
+                                <option value="PIPE">PIPE</option>
+                                <option value="SOCKET">SOCKET</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-section-title">Standardized Technical Attributes</div>
+                    <div class="attributes-grid" id="attributesGrid">
+                        <div class="attr-input-group">
+                            <label>Capacity / Torque Range</label>
+                            <input type="text" id="attrCapacity" class="form-control" placeholder="e.g. 110-550 Nm" value="110-550 Nm">
+                        </div>
+                        <div class="attr-input-group">
+                            <label>Drive Size / Dimension</label>
+                            <input type="text" id="attrDrive" class="form-control" placeholder="e.g. 1/2 Inch, 3/8 Inch" value="1/2 Inch">
+                        </div>
+                        <div class="attr-input-group">
+                            <label>Material / Finish</label>
+                            <input type="text" id="attrMaterial" class="form-control" placeholder="e.g. Chrome Vanadium, HSS" value="Chrome Vanadium">
+                        </div>
+                        <div class="attr-input-group">
+                            <label>Standard / Rating</label>
+                            <input type="text" id="attrStandard" class="form-control" placeholder="e.g. ISO 6789, ASTM F1505" value="ISO 6789">
+                        </div>
+                    </div>
+
+                    <div class="preview-box">
+                        <div class="preview-title">Generated Standard Short Description:</div>
+                        <div class="preview-value" id="standardDescPreview">WRENCH: TORQUE; 110-550 NM; 1/2 INCH DR; CR-V; ISO 6789</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" data-close="assignModal">Cancel</button>
+                    <button class="btn btn-primary btn-orange" id="btnSaveAssignment">Save &amp; Apply Standardization</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL: VIEW NOUN & MODIFIER TAXONOMY -->
+        <div class="modal-overlay" id="viewNMModal">
+            <div class="modal-card modal-xl">
+                <div class="modal-header">
+                    <div class="modal-title-group">
+                        <div class="modal-icon-badge badge-blue">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/></svg>
+                        </div>
+                        <div>
+                            <h2 class="modal-title">Noun &amp; Modifier Taxonomy Dictionary</h2>
+                            <p class="modal-subtitle">Manufacturing Catalyst Approved Material Governance Master</p>
+                        </div>
+                    </div>
+                    <button class="modal-close-btn" data-close="viewNMModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="nm-search-bar">
+                        <input type="text" id="taxonomySearchInput" class="form-control" placeholder="Search Noun or Modifier catalog (e.g. WRENCH, VALVE, TORQUE)...">
+                    </div>
+                    <div class="taxonomy-layout">
+                        <div class="taxonomy-sidebar" id="taxonomyNounList">
+                            <!-- Noun items injected here -->
+                        </div>
+                        <div class="taxonomy-detail-panel" id="taxonomyDetailPanel">
+                            <!-- Detail content injected here -->
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" data-close="viewNMModal">Close</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL: TECHNICAL ANALYSIS -->
+        <div class="modal-overlay" id="analyseModal">
+            <div class="modal-card modal-lg">
+                <div class="modal-header">
+                    <div class="modal-title-group">
+                        <div class="modal-icon-badge badge-cyan">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                        </div>
+                        <div>
+                            <h2 class="modal-title">Material Specification Analysis</h2>
+                            <p class="modal-subtitle">Automated Parsing, Tokenization &amp; Data Completeness</p>
+                        </div>
+                    </div>
+                    <button class="modal-close-btn" data-close="analyseModal">&times;</button>
+                </div>
+                <div class="modal-body" id="analyseModalBody">
+                    <!-- Dynamic analysis report injected here -->
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" data-close="analyseModal">Close</button>
+                    <button class="btn btn-primary btn-blue" id="btnExportAnalysis">Export Analysis Report</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL: AI CLASSIFICATION ENRICHMENT -->
+        <div class="modal-overlay" id="aiModal">
+            <div class="modal-card modal-md">
+                <div class="modal-header">
+                    <div class="modal-title-group">
+                        <div class="modal-icon-badge badge-purple">
+                            <svg class="ai-sparkle-icon" viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                                <path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h2 class="modal-title">Catalyst AI Material Intelligence</h2>
+                            <p class="modal-subtitle">Deep Neural Prediction &amp; Taxonomy Classification</p>
+                        </div>
+                    </div>
+                    <button class="modal-close-btn" data-close="aiModal">&times;</button>
+                </div>
+                <div class="modal-body" id="aiModalBody">
+                    <!-- AI content injected here -->
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" data-close="aiModal">Dismiss</button>
+                    <button class="btn btn-primary btn-purple" id="btnAcceptAISuggestion">Accept &amp; Apply AI Match</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL: AI PROMPT ASSISTANT WORKBENCH -->
+        <div class="modal-overlay" id="promptModal">
+            <div class="modal-card modal-lg">
+                <div class="modal-header">
+                    <div class="modal-title-group">
+                        <div class="modal-icon-badge badge-peach">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>
+                        </div>
+                        <div>
+                            <h2 class="modal-title">AI Prompt Assistant Workbench</h2>
+                            <p class="modal-subtitle">Direct Engineering Query &amp; MRO Prompt Engineering</p>
+                        </div>
+                    </div>
+                    <button class="modal-close-btn" data-close="promptModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="prompt-target-banner" id="promptTargetBanner">
+                        <!-- Item context -->
+                    </div>
+
+                    <div class="quick-prompts-label">Quick Prompts:</div>
+                    <div class="quick-prompt-chips">
+                        <button class="quick-chip" data-prompt="Generate standard SAP ERP short text (40 chars) following noun-modifier rules.">SAP Short Text</button>
+                        <button class="quick-chip" data-prompt="Identify OEM equivalent part numbers, manufacturers and replacement alternatives.">OEM Cross Reference</button>
+                        <button class="quick-chip" data-prompt="Extract missing technical attributes, units of measure, and DIN/ISO standards.">Attribute Extraction</button>
+                        <button class="quick-chip" data-prompt="Classify this item into UNSPSC code and eCl@ss catalog category.">UNSPSC Classification</button>
+                    </div>
+
+                    <div class="prompt-conversation-box" id="promptConversationBox">
+                        <!-- AI stream output -->
+                    </div>
+
+                    <div class="prompt-input-area">
+                        <textarea id="promptInputText" rows="2" class="form-control" placeholder="Ask AI anything about this material record..."></textarea>
+                        <button class="btn btn-primary btn-orange" id="btnSendPrompt">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                            Send
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL: REFRESH CONFIRMATION POPUP -->
+        <div class="modal-overlay" id="refreshConfirmModal">
+            <div class="modal-card modal-sm refresh-confirm-card">
+                <div class="modal-header refresh-confirm-header">
+                    <div class="modal-title-group">
+                        <div class="modal-icon-badge badge-amber-warning">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                <line x1="12" y1="9" x2="12" y2="13"></line>
+                                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                            </svg>
+                        </div>
+                        <div>
+                            <h2 class="modal-title">Unsaved Changes</h2>
+                            <p class="modal-subtitle">Page Refresh Confirmation</p>
+                        </div>
+                    </div>
+                    <button class="modal-close-btn" data-close="refreshConfirmModal">&times;</button>
+                </div>
+                <div class="modal-body refresh-confirm-body">
+                    <div class="refresh-warning-box">
+                        <div class="refresh-warning-icon">
+                            <svg viewBox="0 0 24 24" width="24" height="24" fill="#d97706">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                            </svg>
+                        </div>
+                        <div class="refresh-warning-content">
+                            <div class="refresh-warning-title">Warning: Data will not be saved</div>
+                            <p class="refresh-warning-desc">If you refresh the page, the data will not be saved.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer refresh-confirm-footer">
+                    <button type="button" class="btn btn-secondary" id="btnCancelRefresh" data-close="refreshConfirmModal">Cancel</button>
+                    <button type="button" class="btn btn-primary btn-warning-ok" id="btnConfirmRefresh">OK</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL / OVERLAY: ASSIGN NOUN & MODIFIER LIBRARY LOADING SCREEN -->
+        <div class="assignment-loading-overlay" id="assignmentLoadingOverlay" aria-hidden="true">
+            <div class="assignment-loading-card">
+                <!-- Gyroscopic Orbit Animation Core -->
+                <div class="loading-gyro-container">
+                    <div class="gyro-ring gyro-ring-outer"></div>
+                    <div class="gyro-ring gyro-ring-mid"></div>
+                    <div class="gyro-ring gyro-ring-inner"></div>
+                    <div class="loading-icon-center" id="loadingIconCenter">
+                        <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+                            <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+                        </svg>
+                    </div>
+                </div>
+
+                <div class="loading-content-group">
+                    <h2 class="loading-card-title" id="loadingCardTitle">Standardizing User Data with Library Master</h2>
+                    <p class="loading-card-subtitle" id="loadingCardSubtitle">Deep matching 12,841 library taxonomy vectors across 10,884 catalog items</p>
+                </div>
+
+                <div class="loading-progress-container">
+                    <div class="loading-progress-meta">
+                        <span class="loading-status-badge" id="loadingStatusBadge">
+                            <span class="status-live-dot"></span>
+                            <span id="loadingStatusText">Connecting to Catalyst Library Table...</span>
+                        </span>
+                        <span class="loading-percent-text" id="loadingPercentText">0%</span>
+                    </div>
+                    <div class="loading-progress-track">
+                        <div class="loading-progress-fill" id="loadingProgressFill" style="width: 0%;">
+                            <div class="loading-laser-shimmer"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3-Phase Live Pipeline Telemetry -->
+                <div class="loading-pipeline-grid">
+                    <div class="pipeline-step active" id="pipeStep1">
+                        <div class="pipe-indicator"><span class="pipe-dot"></span></div>
+                        <div class="pipe-info">
+                            <span class="pipe-title">1. Library Vector Indexing</span>
+                            <span class="pipe-desc">12,841 catalog records mapped</span>
+                        </div>
+                    </div>
+                    <div class="pipeline-step" id="pipeStep2">
+                        <div class="pipe-indicator"><span class="pipe-dot"></span></div>
+                        <div class="pipe-info">
+                            <span class="pipe-title">2. Neural Probability Matching</span>
+                            <span class="pipe-desc">Computing Noun &amp; Modifier confidence</span>
+                        </div>
+                    </div>
+                    <div class="pipeline-step" id="pipeStep3">
+                        <div class="pipe-indicator"><span class="pipe-dot"></span></div>
+                        <div class="pipe-info">
+                            <span class="pipe-title">3. OEM &amp; Catalog Standardization</span>
+                            <span class="pipe-desc">Full dataset compliance</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="loading-stats-panel">
+                    <div class="loading-stat-row">
+                        <span class="loading-stat-label">Source Master:</span>
+                        <span class="loading-stat-val">Catalyst Library Table (Sheet1.csv)</span>
+                    </div>
+                    <div class="loading-stat-row">
+                        <span class="loading-stat-label">Progress:</span>
+                        <span class="loading-stat-val text-brand" id="loadingRecordCounter">0 / 10,884 Records</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TOAST NOTIFICATION CONTAINER -->
+        <div class="toast-container" id="toastContainer"></div>
+    </div>
+
+    <!-- Application Script -->
+    <script src="main.js?v=7.17.0"></script>
+</body>
+</html>
