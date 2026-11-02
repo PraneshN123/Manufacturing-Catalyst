@@ -3131,6 +3131,7 @@
         activeRecord: null,
         activeTaxonomyNoun: 'WRENCH',
         expandedAssignSno: null,   // SNo of currently expanded AI suggestion inline drawer
+        expandedPromptSno: null,   // SNo of currently expanded Attribute Template inline drawer
         isLoading: false,
         catalystSource: 'none',    // 'zcql', 'api', 'cache', 'custom', 'none'
         hasUnsavedChanges: false,  // Tracks whether session data was modified
@@ -3777,7 +3778,7 @@
 
         const reportTable = el.table || document.getElementById('reportTable');
         if (reportTable) {
-            reportTable.classList.toggle('drawer-active-table', Boolean(state.expandedAssignSno));
+            reportTable.classList.toggle('drawer-active-table', Boolean(state.expandedAssignSno || state.expandedPromptSno));
         }
 
         el.tableBody.innerHTML = '';
@@ -3785,10 +3786,82 @@
 
         pageItems.forEach(item => {
             const isSelected = state.selectedSnoList.has(item.sno);
-            const isExpanded = (state.expandedAssignSno === item.sno);
+            const isAssignExpanded = (state.expandedAssignSno === item.sno);
+            const isPromptExpanded = (state.expandedPromptSno === item.sno);
+            const isAnyExpanded = isAssignExpanded || isPromptExpanded;
             const tr = document.createElement('tr');
             tr.id = `row-${item.sno}`;
-            tr.className = 'row-item' + (isSelected ? ' row-selected' : '') + (isExpanded ? ' row-expanded-parent' : '');
+            tr.className = 'row-item' + (isSelected ? ' row-selected' : '') + (isAnyExpanded ? ' row-expanded-parent' : '');
+
+            let actionsHtml = '';
+            if (isAssignExpanded) {
+                actionsHtml = `
+                    <button class="row-action-btn btn-row-cancel" data-action="cancel" data-sno="${item.sno}" title="Close AI Suggestions">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="15" y1="9" x2="9" y2="15"></line>
+                            <line x1="9" y1="9" x2="15" y2="15"></line>
+                        </svg>
+                        <span>Cancel</span>
+                    </button>
+                    <button class="row-action-btn btn-row-ai" data-action="ai" data-sno="${item.sno}" title="AI Enrichment &amp; Classification">
+                        <svg class="ai-sparkle-icon" viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
+                            <path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z"/>
+                        </svg>
+                        <span>AI</span>
+                    </button>
+                    <button class="row-action-btn btn-row-prompt" data-action="prompt" data-sno="${item.sno}" title="Prompt Assistant">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
+                            <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
+                        </svg>
+                        <span>Prompt</span>
+                    </button>
+                `;
+            } else if (isPromptExpanded) {
+                actionsHtml = `
+                    <button class="row-action-btn btn-row-assign" data-action="assign" data-sno="${item.sno}" title="Assign Noun &amp; Modifier">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
+                            <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/>
+                        </svg>
+                        <span>Assign</span>
+                    </button>
+                    <button class="row-action-btn btn-row-ai" data-action="ai" data-sno="${item.sno}" title="AI Enrichment &amp; Classification">
+                        <svg class="ai-sparkle-icon" viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
+                            <path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z"/>
+                        </svg>
+                        <span>AI</span>
+                    </button>
+                    <button class="row-action-btn btn-row-cancel btn-row-cancel-prompt" data-action="cancel-prompt" data-sno="${item.sno}" title="Close Attribute Template">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="15" y1="9" x2="9" y2="15"></line>
+                            <line x1="9" y1="9" x2="15" y2="15"></line>
+                        </svg>
+                        <span>Cancel</span>
+                    </button>
+                `;
+            } else {
+                actionsHtml = `
+                    <button class="row-action-btn btn-row-assign" data-action="assign" data-sno="${item.sno}" title="Assign Noun &amp; Modifier">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
+                            <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/>
+                        </svg>
+                        <span>Assign</span>
+                    </button>
+                    <button class="row-action-btn btn-row-ai" data-action="ai" data-sno="${item.sno}" title="AI Enrichment &amp; Classification">
+                        <svg class="ai-sparkle-icon" viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
+                            <path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z"/>
+                        </svg>
+                        <span>AI</span>
+                    </button>
+                    <button class="row-action-btn btn-row-prompt" data-action="prompt" data-sno="${item.sno}" title="Prompt Assistant">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
+                            <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
+                        </svg>
+                        <span>Prompt</span>
+                    </button>
+                `;
+            }
 
             tr.innerHTML = `
                 <td class="cell-checkbox">
@@ -3824,56 +3897,20 @@
                 </td>
                 <td class="cell-actions">
                     <div class="actions-wrapper">
-                        ${isExpanded ? `
-                            <button class="row-action-btn btn-row-cancel" data-action="cancel" data-sno="${item.sno}" title="Close AI Suggestions">
-                                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                    <circle cx="12" cy="12" r="10"></circle>
-                                    <line x1="15" y1="9" x2="9" y2="15"></line>
-                                    <line x1="9" y1="9" x2="15" y2="15"></line>
-                                </svg>
-                                <span>Cancel</span>
-                            </button>
-                            <button class="row-action-btn btn-row-ai" data-action="ai" data-sno="${item.sno}" title="AI Enrichment &amp; Classification">
-                                <svg class="ai-sparkle-icon" viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
-                                    <path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z"/>
-                                </svg>
-                                <span>AI</span>
-                            </button>
-                            <button class="row-action-btn btn-row-prompt" data-action="prompt" data-sno="${item.sno}" title="Prompt Assistant">
-                                <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
-                                    <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
-                                </svg>
-                                <span>Prompt</span>
-                            </button>
-                        ` : `
-                            <button class="row-action-btn btn-row-assign" data-action="assign" data-sno="${item.sno}" title="Assign Noun &amp; Modifier">
-                                <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
-                                    <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/>
-                                </svg>
-                                <span>Assign</span>
-                            </button>
-                            <button class="row-action-btn btn-row-ai" data-action="ai" data-sno="${item.sno}" title="AI Enrichment &amp; Classification">
-                                <svg class="ai-sparkle-icon" viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
-                                    <path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z"/>
-                                </svg>
-                                <span>AI</span>
-                            </button>
-                            <button class="row-action-btn btn-row-prompt" data-action="prompt" data-sno="${item.sno}" title="Prompt Assistant">
-                                <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
-                                    <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
-                                </svg>
-                                <span>Prompt</span>
-                            </button>
-                        `}
+                        ${actionsHtml}
                     </div>
                 </td>
             `;
             fragment.appendChild(tr);
 
-            if (isExpanded) {
+            if (isAssignExpanded) {
                 const expandedRow = buildExpandedAiRow(item);
                 expandedRow.classList.add('ai-drawer-open');
                 fragment.appendChild(expandedRow);
+            } else if (isPromptExpanded) {
+                const promptRow = buildExpandedPromptRow(item);
+                promptRow.classList.add('prompt-drawer-open');
+                fragment.appendChild(promptRow);
             }
         });
 
@@ -5273,6 +5310,11 @@
         const parentTr = document.getElementById(`row-${sno}`);
         if (!parentTr) return;
 
+        // Mutual exclusivity: collapse any open Prompt drawer first
+        if (state.expandedPromptSno) {
+            collapseInlinePrompt(state.expandedPromptSno, true);
+        }
+
         // If another row is currently expanded, collapse it first
         if (state.expandedAssignSno && state.expandedAssignSno !== sno) {
             collapseInlineAssign(state.expandedAssignSno, true);
@@ -5371,7 +5413,7 @@
         }
 
         const reportTable = el.table || document.getElementById('reportTable');
-        if (reportTable) {
+        if (reportTable && !state.expandedPromptSno) {
             reportTable.classList.remove('drawer-active-table');
         }
 
@@ -5467,6 +5509,682 @@
         }
     }
 
+    // ==========================================================================
+    // 7.2. INLINE ATTRIBUTE TEMPLATE DRAWER (PROMPT WORKBENCH)
+    // ==========================================================================
+
+    function resolveAttributeTemplate(noun, modifier, oemStatus, description = '') {
+        const normNoun = (noun || 'MATERIAL').trim().toUpperCase();
+        const normMod = (modifier || 'STANDARD').trim().toUpperCase();
+        const isOem = (oemStatus === 'OEM');
+
+        const nounData = TAXONOMY_DATA[normNoun] || {};
+        let modAttrs = [];
+
+        // 1. Look for exact modifier in taxonomy
+        if (nounData.modifiers && normMod !== '--') {
+            const modObj = nounData.modifiers.find(m => m.name.toUpperCase() === normMod);
+            if (modObj && modObj.attributes && modObj.attributes.length > 0) {
+                modAttrs = [...modObj.attributes];
+            }
+        }
+
+        // 2. Fallback to noun's allAttributes if modifier attributes are empty
+        if (modAttrs.length === 0 && nounData.allAttributes && nounData.allAttributes.length > 0) {
+            modAttrs = nounData.allAttributes.slice(0, 8);
+        }
+
+        // 3. Built-in industrial attribute fallbacks if taxonomy list is empty
+        if (modAttrs.length === 0) {
+            if (normNoun.includes('WRENCH') || normNoun.includes('TOOL')) {
+                modAttrs = ['TORQUE / CAPACITY', 'DRIVE SIZE', 'ACCURACY %', 'MATERIAL', 'DESIGN STANDARD', 'OVERALL LENGTH'];
+            } else if (normNoun.includes('VALVE')) {
+                modAttrs = ['NOMINAL SIZE', 'PRESSURE CLASS', 'BODY MATERIAL', 'TRIM MATERIAL', 'END CONNECTION', 'DESIGN STANDARD'];
+            } else if (normNoun.includes('PUMP')) {
+                modAttrs = ['FLOW RATE', 'DISCHARGE HEAD', 'IMPELLER DIAMETER', 'CASING MATERIAL', 'MOTOR RATING', 'SHAFT SEAL'];
+            } else if (normNoun.includes('CHEMICAL')) {
+                modAttrs = ['PURITY / ASSAY', 'CAS NUMBER', 'FORM OF SUPPLY', 'APPLICATION / GRADE', 'PACKAGING SIZE', 'SCIENTIFIC NAME'];
+            } else if (normNoun.includes('PANEL') || normNoun.includes('ELECTRICAL')) {
+                modAttrs = ['VOLTAGE RATING', 'CURRENT RATING', 'PHASE / FREQUENCY', 'INGRESS PROTECTION (IP)', 'ENCLOSURE TYPE'];
+            } else if (normNoun.includes('BEARING')) {
+                modAttrs = ['BORE DIAMETER (ID)', 'OUTER DIAMETER (OD)', 'WIDTH', 'CLEARANCE CLASS', 'CAGE MATERIAL', 'DESIGN STANDARD'];
+            } else if (normNoun.includes('GASKET')) {
+                modAttrs = ['NOMINAL SIZE', 'THICKNESS', 'PRESSURE RATING', 'MATERIAL', 'FLANGE FACING', 'TEMPERATURE RATING'];
+            } else if (normNoun.includes('GRAVEL') || normNoun.includes('AGGREGATE')) {
+                modAttrs = ['GRAIN SIZE / DIA', 'AGGREGATE TYPE', 'MATERIAL SPECIFICATION', 'GRADATION STANDARD', 'PURITY / WASH'];
+            } else {
+                modAttrs = ['SIZE / DIMENSION', 'MATERIAL SPECIFICATION', 'CAPACITY / RATING', 'DESIGN STANDARD', 'GRADE / TYPE'];
+            }
+        }
+
+        // 4. Construct final attribute list governed by OEM vs NON OEM rules
+        const templateList = [];
+
+        if (isOem) {
+            // OEM Governance Attributes (Mandatory for OEM items)
+            templateList.push({
+                name: 'MANUFACTURER / BRAND',
+                category: 'OEM',
+                requirement: 'Mandatory',
+                type: 'Text',
+                defaultPlaceholder: 'e.g. Snap-on, Fisher, Sulzer, SKF'
+            });
+            templateList.push({
+                name: 'OEM PART NUMBER (P/N)',
+                category: 'OEM',
+                requirement: 'Mandatory',
+                type: 'Alphanumeric',
+                defaultPlaceholder: 'e.g. 102021020006, QJR4400B'
+            });
+            templateList.push({
+                name: 'MODEL / DRAWING NUMBER',
+                category: 'OEM',
+                requirement: 'Optional',
+                type: 'Alphanumeric',
+                defaultPlaceholder: 'e.g. DWG-M-44102-REV3'
+            });
+            templateList.push({
+                name: 'EQUIPMENT NAME / TAG NO.',
+                category: 'OEM',
+                requirement: 'Conditional',
+                type: 'Alphanumeric',
+                defaultPlaceholder: 'e.g. Main Turbine, P-101A, FOR GSSP'
+            });
+
+            // Add top technical attributes as engineering specs
+            modAttrs.slice(0, 4).forEach(attrName => {
+                templateList.push({
+                    name: attrName,
+                    category: 'Technical Spec',
+                    requirement: 'Optional',
+                    type: 'Standard Spec',
+                    defaultPlaceholder: `Specify ${attrName.toLowerCase()}`
+                });
+            });
+        } else {
+            // NON-OEM Governance Attributes (Standard Engineering Specs)
+            modAttrs.forEach((attrName, idx) => {
+                templateList.push({
+                    name: attrName,
+                    category: 'Technical Standard',
+                    requirement: idx < 3 ? 'Mandatory' : 'Optional',
+                    type: 'Standard Spec',
+                    defaultPlaceholder: `Specify ${attrName.toLowerCase()}`
+                });
+            });
+
+            // Add standard design / certification compliance if not present
+            if (!modAttrs.some(a => a.toUpperCase().includes('STANDARD'))) {
+                templateList.push({
+                    name: 'DESIGN STANDARD / RATING',
+                    category: 'Compliance',
+                    requirement: 'Mandatory',
+                    type: 'Standard',
+                    defaultPlaceholder: 'e.g. ISO 9001 / DIN / ASTM'
+                });
+            }
+        }
+
+        return templateList;
+    }
+
+    function extractAttributesFromDesc(desc, noun, modifier, oemStatus) {
+        const d = (desc || '').trim();
+        const dUpper = d.toUpperCase();
+        const extracted = {};
+
+        // 1. Numerical ranges / capacities (e.g. 110-550 Nm, 1000V, 415V, 15 MM)
+        const torqueMatch = d.match(/(\d+[\s-]*\d*\s*(?:NM|N-M|FT-LB|IN-LB))/i);
+        if (torqueMatch) {
+            extracted['RANGE LIMIT'] = torqueMatch[1].trim();
+            extracted['CAPACITY'] = torqueMatch[1].trim();
+            extracted['TORQUE / CAPACITY'] = torqueMatch[1].trim();
+            extracted['Torque Capacity'] = torqueMatch[1].trim();
+        }
+
+        const voltMatch = d.match(/(\d+\s*(?:V|KV|VOLT|VOLTS))/i);
+        if (voltMatch) {
+            extracted['VOLTAGE RATING'] = voltMatch[1].trim();
+            extracted['Voltage Rating'] = voltMatch[1].trim();
+        }
+
+        const ampMatch = d.match(/(\d+\s*(?:A|AMP|AMPS|KA))/i);
+        if (ampMatch) {
+            extracted['CURRENT RATING'] = ampMatch[1].trim();
+        }
+
+        const dimMatch = d.match(/(\d+\s*(?:MM|CM|M|INCH|IN|DIA|DIAMETER))/i);
+        if (dimMatch) {
+            extracted['SIZE / DIMENSION'] = dimMatch[1].trim();
+            extracted['GRAIN SIZE / DIA'] = dimMatch[1].trim();
+            extracted['DRIVE SIZE'] = dimMatch[1].trim();
+            extracted['Drive Size'] = dimMatch[1].trim();
+        }
+
+        const pkgMatch = d.match(/(\d+\s*(?:GM|KG|ML|LTR|L|BOT|BOTTLE|BAG|CAN|DRUM|TIN))/i);
+        if (pkgMatch) {
+            extracted['FORM OF SUPPLY'] = pkgMatch[1].trim();
+            extracted['PACKAGING SIZE'] = pkgMatch[1].trim();
+        }
+
+        // 2. Chemical names & CAS
+        if (dUpper.includes('PHENANTHROLINE')) {
+            extracted['SCIENTIFIC NAME'] = '1,10-Phenanthroline monohydrate';
+            extracted['CAS NUMBER'] = '5144-89-8';
+            extracted['PURITY / ASSAY'] = '99%+ ACS Grade';
+            extracted['FORM OF SUPPLY'] = '5 gm bot';
+            extracted['APPLICATION / GRADE'] = 'ACS Reagent Grade';
+        } else if (dUpper.includes('BARIUM') || dUpper.includes('BARYTE')) {
+            extracted['SCIENTIFIC NAME'] = 'Barium Sulphate';
+            extracted['PURITY / ASSAY'] = '98% Min API Grade';
+            extracted['FORM OF SUPPLY'] = '50 kg bag';
+        }
+
+        // 3. Equipment tags & context (e.g. FOR GSSP)
+        const forMatch = d.match(/FOR\s+([A-Z0-9_-]+)/i);
+        if (forMatch) {
+            extracted['EQUIPMENT NAME / TAG NO.'] = `FOR ${forMatch[1].trim()}`;
+        }
+
+        // 4. OEM Part numbers & Brands
+        const pnMatch = d.match(/(?:P\/N|PN|PART\s*(?:NO|NUMBER)?|MODEL|CAT|REF)[:\s#-]*([A-Z0-9.-]+)/i);
+        if (pnMatch) {
+            extracted['OEM PART NUMBER (P/N)'] = pnMatch[1].trim();
+        }
+
+        const mfrMatch = d.match(/(?:MFR|MAKE|BRAND)[:\s-]*([A-Z0-9&\s]+)/i);
+        if (mfrMatch) {
+            extracted['MANUFACTURER / BRAND'] = mfrMatch[1].trim();
+        }
+
+        // 5. Standards (ISO, DIN, ASTM, API, VDE, IEC)
+        const stdMatch = d.match(/(ISO\s*\d+|DIN\s*\d+|ASTM\s*[A-Z0-9]+|API\s*\d+[A-Z]*|VDE\s*\d+|IEC\s*\d+)/i);
+        if (stdMatch) {
+            extracted['DESIGN STANDARD / RATING'] = stdMatch[1].trim();
+            extracted['Standard'] = stdMatch[1].trim();
+        } else {
+            extracted['DESIGN STANDARD / RATING'] = 'ISO 9001 / DIN';
+        }
+
+        // 6. Materials
+        if (dUpper.includes('CR-V') || dUpper.includes('CHROME VANADIUM')) {
+            extracted['MATERIAL'] = 'Chrome Vanadium';
+            extracted['MATERIAL SPECIFICATION'] = 'Chrome Vanadium (Cr-V)';
+        } else if (dUpper.includes('SS') || dUpper.includes('STAINLESS')) {
+            extracted['MATERIAL'] = 'Stainless Steel 316';
+            extracted['MATERIAL SPECIFICATION'] = 'SS 316';
+        } else if (dUpper.includes('PVC')) {
+            extracted['MATERIAL'] = 'Polyvinyl Chloride (PVC)';
+            extracted['MATERIAL SPECIFICATION'] = 'PVC Schedule 80';
+        } else if (dUpper.includes('GRAVEL') || dUpper.includes('RIVER')) {
+            extracted['AGGREGATE TYPE'] = 'River Washed Gravel';
+            extracted['MATERIAL SPECIFICATION'] = 'Natural River Aggregate';
+            extracted['PURITY / WASH'] = 'Washed & Screened';
+        }
+
+        return extracted;
+    }
+
+    function generateStandardShortText(item, attrs = {}) {
+        const noun = (item.noun && item.noun !== '--') ? item.noun.trim() : 'MATERIAL';
+        const modifier = (item.modifier && item.modifier !== '--') ? item.modifier.trim() : '';
+        const oem = item.oem || '--';
+
+        const parts = [noun];
+        if (modifier && modifier !== noun) {
+            parts.push(modifier);
+        }
+
+        if (oem === 'OEM') {
+            const mfr = attrs['MANUFACTURER / BRAND'] || '';
+            const pn = attrs['OEM PART NUMBER (P/N)'] || '';
+            const model = attrs['MODEL / DRAWING NUMBER'] || '';
+            const tag = attrs['EQUIPMENT NAME / TAG NO.'] || '';
+
+            if (mfr) parts.push('MFR: ' + mfr.toUpperCase());
+            if (pn) parts.push('P/N: ' + pn.toUpperCase());
+            if (model) parts.push('MOD: ' + model.toUpperCase());
+            if (tag) parts.push('EQ: ' + tag.toUpperCase());
+
+            Object.entries(attrs).forEach(([k, v]) => {
+                if (!['MANUFACTURER / BRAND', 'OEM PART NUMBER (P/N)', 'MODEL / DRAWING NUMBER', 'EQUIPMENT NAME / TAG NO.'].includes(k)) {
+                    if (v && v.trim().length > 0) {
+                        parts.push(v.trim().toUpperCase());
+                    }
+                }
+            });
+        } else {
+            Object.entries(attrs).forEach(([k, v]) => {
+                if (!['MANUFACTURER / BRAND', 'OEM PART NUMBER (P/N)', 'MODEL / DRAWING NUMBER', 'EQUIPMENT NAME / TAG NO.'].includes(k)) {
+                    if (v && v.trim().length > 0) {
+                        parts.push(v.trim().toUpperCase());
+                    }
+                }
+            });
+        }
+
+        return parts.join(', ');
+    }
+
+    function buildExpandedPromptRow(item) {
+        const normNoun = (item.noun && item.noun !== '--') ? item.noun : 'MATERIAL';
+        const normMod = (item.modifier && item.modifier !== '--') ? item.modifier : 'STANDARD';
+        const oemStatus = item.oem || '--';
+
+        // Auto-extract attributes if not already saved
+        if (!item.attributes || Object.keys(item.attributes).length === 0) {
+            item.attributes = extractAttributesFromDesc(item.description, normNoun, normMod, oemStatus);
+        }
+
+        const templateAttrs = resolveAttributeTemplate(normNoun, normMod, oemStatus, item.description);
+
+        const attrRows = templateAttrs.map((attr, idx) => {
+            const val = item.attributes[attr.name] || '';
+            const isFilled = Boolean(val && val.trim().length > 0);
+            const reqBadge = attr.requirement === 'Mandatory' 
+                ? '<span class="badge-req-m">Mandatory</span>'
+                : attr.requirement === 'Conditional'
+                ? '<span class="badge-req-m" style="background:#fef3c7;color:#b45309;">Conditional</span>'
+                : '<span class="badge-req-o">Optional</span>';
+            
+            const catBadge = attr.category === 'OEM'
+                ? '<span class="badge-cat-oem">OEM Master</span>'
+                : attr.category === 'Compliance'
+                ? '<span class="badge-cat-tech" style="background:#f3e8ff;color:#7e22ce;">Compliance</span>'
+                : '<span class="badge-cat-tech">Engineering</span>';
+
+            return `
+                <tr data-attr-name="${escapeHtml(attr.name)}">
+                    <td style="width: 38px; text-align: center; color: #94a3b8; font-weight: 600;">${idx + 1}</td>
+                    <td>
+                        <div class="prompt-attr-name">
+                            <span>${escapeHtml(attr.name)}</span>
+                            ${reqBadge}
+                        </div>
+                    </td>
+                    <td>${catBadge}</td>
+                    <td style="font-size: 11.5px; color: #64748b;">${escapeHtml(attr.type)}</td>
+                    <td>
+                        <input type="text" 
+                               class="attr-table-input" 
+                               data-sno="${item.sno}" 
+                               data-attr="${escapeHtml(attr.name)}" 
+                               value="${escapeHtml(val)}" 
+                               placeholder="${escapeHtml(attr.defaultPlaceholder || 'Enter specification...')}" />
+                    </td>
+                    <td class="col-attr-status">
+                        ${isFilled 
+                            ? '<span class="badge-status-ok"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg> Populated</span>'
+                            : '<span class="badge-status-pending">Pending</span>'
+                        }
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        const shortText = generateStandardShortText(item, item.attributes);
+        const isOem = (oemStatus === 'OEM');
+        const isNonOem = (oemStatus === 'NON OEM');
+
+        const bannerHtml = isOem ? `
+            <div class="attr-template-banner banner-oem">
+                <span class="banner-badge">OEM Governed Template</span>
+                <span>Governed by Manufacturer / Brand, OEM Part Number (P/N), and Model/Equipment specifications.</span>
+            </div>
+        ` : isNonOem ? `
+            <div class="attr-template-banner banner-non-oem">
+                <span class="banner-badge">NON-OEM Standard Template</span>
+                <span>Governed by engineering physical, dimensional, material, and ISO/DIN compliance specifications.</span>
+            </div>
+        ` : `
+            <div class="attr-template-banner banner-pending">
+                <span class="banner-badge">Unclassified Item</span>
+                <span>Please select OEM or NON OEM above to enforce strict ERP catalog governance rules.</span>
+            </div>
+        `;
+
+        const tr = document.createElement('tr');
+        tr.id = `expanded-prompt-row-${item.sno}`;
+        tr.className = 'expanded-prompt-row';
+
+        tr.innerHTML = `
+            <td colspan="7" class="expanded-prompt-cell">
+                <div class="prompt-drawer-animator">
+                    <div class="prompt-drawer-content">
+                        <div class="prompt-template-card">
+                            <div class="prompt-template-header">
+                                <div class="prompt-template-title-group">
+                                    <div class="prompt-template-icon">
+                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                                            <path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9H9V9h10v2zm-4 4H9v-2h6v2zm4-8H9V5h10v2z"/>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <div class="prompt-template-title">Standardized MRO Attribute Template</div>
+                                        <div class="prompt-template-subtitle">Governed by Class Taxonomy &amp; OEM Classification Rules</div>
+                                    </div>
+                                </div>
+                                <div class="prompt-template-meta">
+                                    <div class="prompt-chips-wrapper">
+                                        <span class="prompt-chip-badge chip-noun-style">NOUN: ${escapeHtml(normNoun)}</span>
+                                        <span class="prompt-chip-badge chip-mod-style">MODIFIER: ${escapeHtml(normMod)}</span>
+                                    </div>
+                                    <div class="prompt-oem-segmented">
+                                        <button type="button" class="btn-segmented ${isNonOem ? 'active-non-oem' : ''}" data-action="toggle-prompt-oem" data-sno="${item.sno}" data-oem="NON OEM">NON OEM</button>
+                                        <button type="button" class="btn-segmented ${isOem ? 'active-oem' : ''}" data-action="toggle-prompt-oem" data-sno="${item.sno}" data-oem="OEM">OEM</button>
+                                        <button type="button" class="btn-segmented ${(!isOem && !isNonOem) ? 'active-pending' : ''}" data-action="toggle-prompt-oem" data-sno="${item.sno}" data-oem="--">--</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            ${bannerHtml}
+
+                            <div class="prompt-attributes-wrapper">
+                                <table class="prompt-attributes-table">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 38px; text-align: center;">#</th>
+                                            <th style="width: 240px;">Attribute Name</th>
+                                            <th style="width: 140px;">Governance</th>
+                                            <th style="width: 120px;">Data Type</th>
+                                            <th>Current Value</th>
+                                            <th style="width: 110px;">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${attrRows}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="prompt-preview-container">
+                                <div class="prompt-preview-header">
+                                    <span class="preview-title">ERP Material Master Short Description Preview</span>
+                                    <button type="button" class="btn-copy-preview" data-action="copy-prompt-desc" data-sno="${item.sno}">
+                                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+                                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                        </svg>
+                                        <span>Copy Short Text</span>
+                                    </button>
+                                </div>
+                                <div class="prompt-preview-box" id="preview-box-${item.sno}">${escapeHtml(shortText)}</div>
+                            </div>
+
+                            <div class="prompt-actions-footer">
+                                <div class="prompt-footer-left">
+                                    <button type="button" class="btn-prompt-act btn-auto-extract" data-action="auto-extract" data-sno="${item.sno}">
+                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                                            <path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z"/>
+                                        </svg>
+                                        <span>AI Auto-Extract Attributes</span>
+                                    </button>
+                                </div>
+                                <div class="prompt-footer-right">
+                                    <button type="button" class="btn-prompt-act btn-prompt-cancel" data-action="cancel-prompt" data-sno="${item.sno}">Close</button>
+                                    <button type="button" class="btn-prompt-act btn-prompt-save" data-action="save-prompt-attrs" data-sno="${item.sno}">
+                                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5">
+                                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                                            <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                                            <polyline points="7 3 7 8 15 8"></polyline>
+                                        </svg>
+                                        <span>Save Attributes</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </td>
+        `;
+
+        return tr;
+    }
+
+    function expandInlinePrompt(sno, isDirectRender = false) {
+        const parentTr = document.getElementById(`row-${sno}`);
+        if (!parentTr) return;
+
+        // Mutual exclusivity: collapse any open Assign or other Prompt drawer first
+        if (state.expandedAssignSno) {
+            collapseInlineAssign(state.expandedAssignSno, true);
+        }
+        if (state.expandedPromptSno && state.expandedPromptSno !== sno) {
+            collapseInlinePrompt(state.expandedPromptSno, true);
+        }
+
+        const item = state.allRecords.find(r => r.sno === sno);
+        if (!item) return;
+
+        state.expandedPromptSno = sno;
+        parentTr.classList.add('row-expanded-parent');
+
+        const reportTable = el.table || document.getElementById('reportTable');
+        if (reportTable) {
+            reportTable.classList.add('drawer-active-table');
+        }
+
+        // Parent row action buttons: Prompt strictly switches to Cancel
+        const actionsCell = parentTr.querySelector('.cell-actions .actions-wrapper');
+        if (actionsCell) {
+            actionsCell.innerHTML = `
+                <button class="row-action-btn btn-row-assign" data-action="assign" data-sno="${item.sno}" title="Assign Noun &amp; Modifier">
+                    <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
+                        <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/>
+                    </svg>
+                    <span>Assign</span>
+                </button>
+                <button class="row-action-btn btn-row-ai" data-action="ai" data-sno="${item.sno}" title="AI Enrichment &amp; Classification">
+                    <svg class="ai-sparkle-icon" viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
+                        <path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z"/>
+                    </svg>
+                    <span>AI</span>
+                </button>
+                <button class="row-action-btn btn-row-cancel btn-row-cancel-prompt" data-action="cancel-prompt" data-sno="${item.sno}" title="Close Attribute Template">
+                    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="15" y1="9" x2="9" y2="15"></line>
+                        <line x1="9" y1="9" x2="15" y2="15"></line>
+                    </svg>
+                    <span>Cancel</span>
+                </button>
+            `;
+        }
+
+        // Check if expanded prompt row is already in DOM
+        let expandedTr = document.getElementById(`expanded-prompt-row-${sno}`);
+        if (!expandedTr) {
+            expandedTr = buildExpandedPromptRow(item);
+            parentTr.after(expandedTr);
+        }
+
+        if (isDirectRender) {
+            expandedTr.classList.add('prompt-drawer-open');
+        } else {
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    if (expandedTr) expandedTr.classList.add('prompt-drawer-open');
+                });
+            });
+        }
+    }
+
+    function collapseInlinePrompt(sno, immediate = false) {
+        const parentTr = document.getElementById(`row-${sno}`);
+        const expandedTr = document.getElementById(`expanded-prompt-row-${sno}`);
+
+        if (parentTr) {
+            parentTr.classList.remove('row-expanded-parent');
+            const actionsCell = parentTr.querySelector('.cell-actions .actions-wrapper');
+            if (actionsCell) {
+                actionsCell.innerHTML = `
+                    <button class="row-action-btn btn-row-assign" data-action="assign" data-sno="${sno}" title="Assign Noun &amp; Modifier">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
+                            <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/>
+                        </svg>
+                        <span>Assign</span>
+                    </button>
+                    <button class="row-action-btn btn-row-ai" data-action="ai" data-sno="${sno}" title="AI Enrichment &amp; Classification">
+                        <svg class="ai-sparkle-icon" viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
+                            <path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z"/>
+                        </svg>
+                        <span>AI</span>
+                    </button>
+                    <button class="row-action-btn btn-row-prompt" data-action="prompt" data-sno="${sno}" title="Prompt Assistant">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
+                            <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
+                        </svg>
+                        <span>Prompt</span>
+                    </button>
+                `;
+            }
+        }
+
+        if (state.expandedPromptSno === sno) {
+            state.expandedPromptSno = null;
+        }
+
+        const reportTable = el.table || document.getElementById('reportTable');
+        if (reportTable && !state.expandedAssignSno) {
+            reportTable.classList.remove('drawer-active-table');
+        }
+
+        if (expandedTr) {
+            if (immediate) {
+                expandedTr.remove();
+            } else {
+                expandedTr.classList.remove('prompt-drawer-open');
+                setTimeout(() => {
+                    if (expandedTr && !expandedTr.classList.contains('prompt-drawer-open')) {
+                        expandedTr.remove();
+                    }
+                }, 290);
+            }
+        }
+    }
+
+    function toggleInlinePrompt(sno) {
+        if (state.expandedPromptSno === sno) {
+            collapseInlinePrompt(sno);
+        } else {
+            expandInlinePrompt(sno);
+        }
+    }
+
+    function setRecordOemAndRefreshPrompt(sno, newOem) {
+        const item = state.allRecords.find(r => r.sno === sno);
+        if (!item) return;
+
+        item.oem = newOem;
+        state.hasUnsavedChanges = true;
+
+        // Update parent row OEM badge select
+        const parentTr = document.getElementById(`row-${sno}`);
+        if (parentTr) {
+            const oemSelect = parentTr.querySelector('.oem-badge-select');
+            if (oemSelect) {
+                oemSelect.value = newOem;
+                oemSelect.classList.remove('oem-badge-yes', 'oem-badge-non', 'oem-badge-pending');
+                if (newOem === 'OEM') oemSelect.classList.add('oem-badge-yes');
+                else if (newOem === 'NON OEM') oemSelect.classList.add('oem-badge-non');
+                else oemSelect.classList.add('oem-badge-pending');
+            }
+        }
+
+        updateStatsCounters();
+
+        // Re-render expanded prompt row content in place
+        const oldExpandedTr = document.getElementById(`expanded-prompt-row-${sno}`);
+        if (oldExpandedTr) {
+            const newExpandedTr = buildExpandedPromptRow(item);
+            newExpandedTr.classList.add('prompt-drawer-open');
+            oldExpandedTr.replaceWith(newExpandedTr);
+        }
+        showToast(`S.No #${sno} OEM status updated to "${newOem}" (Template re-aligned)`, 'info');
+    }
+
+    function handleAutoExtractAttributes(sno) {
+        const item = state.allRecords.find(r => r.sno === sno);
+        if (!item) return;
+
+        const normNoun = (item.noun && item.noun !== '--') ? item.noun : 'MATERIAL';
+        const normMod = (item.modifier && item.modifier !== '--') ? item.modifier : 'STANDARD';
+        const oemStatus = item.oem || '--';
+
+        const extracted = extractAttributesFromDesc(item.description, normNoun, normMod, oemStatus);
+        if (!item.attributes) item.attributes = {};
+        Object.assign(item.attributes, extracted);
+
+        // Update inputs in DOM with flash animation
+        const drawerTr = document.getElementById(`expanded-prompt-row-${sno}`);
+        if (drawerTr) {
+            const inputs = drawerTr.querySelectorAll('.attr-table-input');
+            inputs.forEach(input => {
+                const attrName = input.getAttribute('data-attr');
+                if (extracted[attrName]) {
+                    input.value = extracted[attrName];
+                    input.classList.add('input-flash');
+                    setTimeout(() => input.classList.remove('input-flash'), 1000);
+
+                    // Update status badge
+                    const statusTd = input.closest('tr')?.querySelector('.col-attr-status');
+                    if (statusTd) {
+                        statusTd.innerHTML = '<span class="badge-status-ok"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg> Populated</span>';
+                    }
+                }
+            });
+
+            // Update preview box
+            const previewBox = drawerTr.querySelector(`#preview-box-${sno}`);
+            if (previewBox) {
+                previewBox.textContent = generateStandardShortText(item, item.attributes);
+            }
+        }
+
+        state.hasUnsavedChanges = true;
+        showToast(`AI Auto-extracted ${Object.keys(extracted).length} attributes from description`, 'success');
+    }
+
+    function handleSavePromptAttributes(sno) {
+        const item = state.allRecords.find(r => r.sno === sno);
+        if (!item) return;
+
+        const drawerTr = document.getElementById(`expanded-prompt-row-${sno}`);
+        if (drawerTr) {
+            if (!item.attributes) item.attributes = {};
+            const inputs = drawerTr.querySelectorAll('.attr-table-input');
+            inputs.forEach(input => {
+                const attrName = input.getAttribute('data-attr');
+                item.attributes[attrName] = input.value.trim();
+            });
+
+            const shortText = generateStandardShortText(item, item.attributes);
+            item.standardShortText = shortText;
+            state.hasUnsavedChanges = true;
+
+            showToast(`Saved attribute specifications for S.No #${sno}`, 'success');
+            collapseInlinePrompt(sno);
+        }
+    }
+
+    function handleCopyPromptDescription(sno) {
+        const previewBox = document.getElementById(`preview-box-${sno}`);
+        if (!previewBox) return;
+
+        const text = previewBox.textContent.trim();
+        if (!text) return;
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(() => {
+                showToast('Standard Short Text copied to clipboard!', 'success');
+            }).catch(() => {
+                showToast('Short Text ready: ' + text, 'info');
+            });
+        } else {
+            showToast('Short Text ready: ' + text, 'info');
+        }
+    }
+
     // ==========================================
     // 8. TABLE EVENT DELEGATION & USER ACTIONS
     // ==========================================
@@ -5492,7 +6210,48 @@
             return;
         }
 
-        // 3. Parent row action buttons
+        // 3. Prompt Drawer segmented OEM toggle
+        const oemSegBtn = e.target.closest('[data-action="toggle-prompt-oem"]');
+        if (oemSegBtn) {
+            const sno = parseInt(oemSegBtn.getAttribute('data-sno'), 10);
+            const targetOem = oemSegBtn.getAttribute('data-oem') || '--';
+            setRecordOemAndRefreshPrompt(sno, targetOem);
+            return;
+        }
+
+        // 4. Prompt Drawer AI Auto-extract
+        const autoExtBtn = e.target.closest('[data-action="auto-extract"]');
+        if (autoExtBtn) {
+            const sno = parseInt(autoExtBtn.getAttribute('data-sno'), 10);
+            handleAutoExtractAttributes(sno);
+            return;
+        }
+
+        // 5. Prompt Drawer Save attributes
+        const saveAttrBtn = e.target.closest('[data-action="save-prompt-attrs"]');
+        if (saveAttrBtn) {
+            const sno = parseInt(saveAttrBtn.getAttribute('data-sno'), 10);
+            handleSavePromptAttributes(sno);
+            return;
+        }
+
+        // 6. Prompt Drawer Close / Cancel
+        const cancelPromptBtn = e.target.closest('[data-action="cancel-prompt"]');
+        if (cancelPromptBtn) {
+            const sno = parseInt(cancelPromptBtn.getAttribute('data-sno'), 10);
+            collapseInlinePrompt(sno);
+            return;
+        }
+
+        // 7. Prompt Drawer Copy preview
+        const copyPrevBtn = e.target.closest('[data-action="copy-prompt-desc"]');
+        if (copyPrevBtn) {
+            const sno = parseInt(copyPrevBtn.getAttribute('data-sno'), 10);
+            handleCopyPromptDescription(sno);
+            return;
+        }
+
+        // 8. Parent row action buttons
         const btn = e.target.closest('.row-action-btn');
         if (!btn) return;
 
@@ -5505,12 +6264,45 @@
             toggleInlineAssign(sno);
         } else if (action === 'cancel') {
             toggleInlineAssign(sno);
+        } else if (action === 'prompt') {
+            toggleInlinePrompt(sno);
+        } else if (action === 'cancel-prompt') {
+            collapseInlinePrompt(sno);
         } else if (action === 'analyse') {
             openAnalyseModalForRecord(item);
         } else if (action === 'ai') {
             openAIModalForRecord(item);
-        } else if (action === 'prompt') {
-            openPromptModalForRecord(item);
+        }
+    });
+
+    // Delegated input listener for real-time attribute editing & short text preview
+    el.tableBody.addEventListener('input', (e) => {
+        if (e.target.classList.contains('attr-table-input')) {
+            const sno = parseInt(e.target.getAttribute('data-sno'), 10);
+            const attrName = e.target.getAttribute('data-attr');
+            const val = e.target.value.trim();
+
+            const item = state.allRecords.find(r => r.sno === sno);
+            if (item) {
+                if (!item.attributes) item.attributes = {};
+                item.attributes[attrName] = val;
+
+                // Update status badge for this attribute row
+                const statusTd = e.target.closest('tr')?.querySelector('.col-attr-status');
+                if (statusTd) {
+                    if (val.length > 0) {
+                        statusTd.innerHTML = '<span class="badge-status-ok"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg> Populated</span>';
+                    } else {
+                        statusTd.innerHTML = '<span class="badge-status-pending">Pending</span>';
+                    }
+                }
+
+                // Live update short text preview box
+                const previewBox = document.getElementById(`preview-box-${sno}`);
+                if (previewBox) {
+                    previewBox.textContent = generateStandardShortText(item, item.attributes);
+                }
+            }
         }
     });
 
