@@ -3132,6 +3132,9 @@
         activeTaxonomyNoun: 'WRENCH',
         expandedAssignSno: null,   // SNo of currently expanded AI suggestion inline drawer
         expandedPromptSno: null,   // SNo of currently expanded Attribute Template inline drawer
+        activeAiDropdownSno: null, // SNo of currently open AI Popover Dropdown
+        aiCache: {},               // Cache of AI results by SNo
+        isEditingAiKeyInDropdown: false,
         isLoading: false,
         catalystSource: 'none',    // 'zcql', 'api', 'cache', 'custom', 'none'
         hasUnsavedChanges: false,  // Tracks whether session data was modified
@@ -3804,11 +3807,14 @@
                         </svg>
                         <span>Cancel</span>
                     </button>
-                    <button class="row-action-btn btn-row-ai" data-action="ai" data-sno="${item.sno}" title="AI Enrichment &amp; Classification">
+                    <button class="row-action-btn btn-row-ai ${state.activeAiDropdownSno === item.sno ? 'ai-btn-active' : ''}" data-action="ai" data-sno="${item.sno}" title="AI Enrichment &amp; Classification Dropdown">
                         <svg class="ai-sparkle-icon" viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
                             <path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z"/>
                         </svg>
                         <span>AI</span>
+                        <svg class="ai-dropdown-arrow" viewBox="0 0 24 24" width="10" height="10" fill="currentColor">
+                            <path d="M7 10l5 5 5-5z"/>
+                        </svg>
                     </button>
                     <button class="row-action-btn btn-row-prompt" data-action="prompt" data-sno="${item.sno}" title="Prompt Assistant">
                         <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
@@ -3825,11 +3831,14 @@
                         </svg>
                         <span>Assign</span>
                     </button>
-                    <button class="row-action-btn btn-row-ai" data-action="ai" data-sno="${item.sno}" title="AI Enrichment &amp; Classification">
+                    <button class="row-action-btn btn-row-ai ${state.activeAiDropdownSno === item.sno ? 'ai-btn-active' : ''}" data-action="ai" data-sno="${item.sno}" title="AI Enrichment &amp; Classification Dropdown">
                         <svg class="ai-sparkle-icon" viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
                             <path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z"/>
                         </svg>
                         <span>AI</span>
+                        <svg class="ai-dropdown-arrow" viewBox="0 0 24 24" width="10" height="10" fill="currentColor">
+                            <path d="M7 10l5 5 5-5z"/>
+                        </svg>
                     </button>
                     <button class="row-action-btn btn-row-cancel btn-row-cancel-prompt" data-action="cancel-prompt" data-sno="${item.sno}" title="Close Attribute Template">
                         <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -3848,11 +3857,14 @@
                         </svg>
                         <span>Assign</span>
                     </button>
-                    <button class="row-action-btn btn-row-ai" data-action="ai" data-sno="${item.sno}" title="AI Enrichment &amp; Classification">
+                    <button class="row-action-btn btn-row-ai ${state.activeAiDropdownSno === item.sno ? 'ai-btn-active' : ''}" data-action="ai" data-sno="${item.sno}" title="AI Enrichment &amp; Classification Dropdown">
                         <svg class="ai-sparkle-icon" viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
                             <path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z"/>
                         </svg>
                         <span>AI</span>
+                        <svg class="ai-dropdown-arrow" viewBox="0 0 24 24" width="10" height="10" fill="currentColor">
+                            <path d="M7 10l5 5 5-5z"/>
+                        </svg>
                     </button>
                     <button class="row-action-btn btn-row-prompt" data-action="prompt" data-sno="${item.sno}" title="Prompt Assistant">
                         <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
@@ -5225,6 +5237,316 @@
 
         showToast(`AI Match accepted: ${noun} | ${mod} for S.No #${item.sno}`, 'success');
         closeModal(el.aiModal);
+        closeAiDropdown();
+    }
+
+    // ==========================================================================
+    // 7.1. FLOATING AI POPOVER DROPDOWN (GPT-5.4-MINI ENRICHMENT)
+    // ==========================================================================
+
+    function closeAiDropdown() {
+        if (!state.activeAiDropdownSno) return;
+        const prevBtn = document.querySelector(`.btn-row-ai[data-sno="${state.activeAiDropdownSno}"]`);
+        if (prevBtn) {
+            prevBtn.classList.remove('ai-btn-active');
+        }
+        const dd = document.getElementById('aiPopoverDropdown');
+        if (dd) {
+            dd.remove();
+        }
+        state.activeAiDropdownSno = null;
+        state.isEditingAiKeyInDropdown = false;
+    }
+
+    function positionAiDropdown(btnElement, dropdown) {
+        if (!btnElement || !dropdown) return;
+        const rect = btnElement.getBoundingClientRect();
+        const width = 380;
+        
+        let left = rect.right - width;
+        if (left < 10) left = 10;
+        if (left + width > window.innerWidth - 10) {
+            left = window.innerWidth - width - 10;
+        }
+
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const dropdownHeight = dropdown.offsetHeight || 380;
+        let top;
+
+        if (spaceBelow < dropdownHeight + 10 && rect.top > dropdownHeight + 10) {
+            top = rect.top - dropdownHeight - 6;
+            dropdown.classList.add('ai-popover-above');
+        } else {
+            top = rect.bottom + 6;
+            dropdown.classList.remove('ai-popover-above');
+        }
+
+        dropdown.style.position = 'fixed';
+        dropdown.style.top = `${Math.max(6, Math.round(top))}px`;
+        dropdown.style.left = `${Math.round(left)}px`;
+        dropdown.style.zIndex = '100000';
+    }
+
+    function renderAiDropdownContent(item, aiResult, apiKey, isEditingKey, isLoading, btnElement) {
+        const dropdown = document.getElementById('aiPopoverDropdown');
+        if (!dropdown) return;
+
+        const maskedKey = apiKey ? (apiKey.substring(0, 7) + '...' + apiKey.substring(apiKey.length - 4)) : '';
+
+        const modelSourceTag = (aiResult && aiResult.source === 'openai-responses')
+            ? 'gpt-5.4-mini'
+            : (aiResult && aiResult.source === 'openai-chat')
+            ? 'gpt-4o-mini'
+            : 'Taxonomy Copilot';
+
+        let keyBarHtml = '';
+        if (isEditingKey || !apiKey) {
+            keyBarHtml = `
+                <div class="ai-dd-key-edit-bar">
+                    <div class="ai-dd-key-title-row">
+                        <span>🔑 OpenAI API Key Configuration</span>
+                        ${apiKey ? `<button type="button" class="btn-ai-dd-cancel-key" id="btnAiDdCancelKey">Cancel</button>` : ''}
+                    </div>
+                    <div class="ai-dd-key-input-row">
+                        <input type="password" id="inputAiDdApiKey" placeholder="sk-proj-..." value="${escapeHtml(apiKey || '')}" />
+                        <button type="button" id="btnAiDdSaveKey">Save &amp; Run</button>
+                    </div>
+                </div>
+            `;
+        } else {
+            keyBarHtml = `
+                <div class="ai-dd-key-status-bar">
+                    <div class="ai-dd-key-info">
+                        <span class="ai-dd-key-dot"></span>
+                        <span>API Key: <strong>${escapeHtml(maskedKey)}</strong></span>
+                    </div>
+                    <button type="button" id="btnAiDdEditKey" class="btn-ai-dd-edit-key">Change</button>
+                </div>
+            `;
+        }
+
+        let bodyHtml = '';
+        if (isLoading) {
+            bodyHtml = `
+                <div class="ai-dd-loading">
+                    <div class="ai-dd-spinner"></div>
+                    <div class="ai-dd-loading-title">Connecting to OpenAI gpt-5.4-mini...</div>
+                    <div class="ai-dd-loading-sub">Running deep taxonomy classification against material description</div>
+                </div>
+            `;
+        } else if (aiResult) {
+            const altsHtml = (aiResult.alternatives && aiResult.alternatives.length > 0) ? `
+                <div class="ai-dd-alts-label">Alternative Suggestions:</div>
+                <div class="ai-dd-alt-list">
+                    ${aiResult.alternatives.map((alt) => `
+                        <div class="ai-dd-alt-item" data-noun="${escapeHtml(alt.noun)}" data-mod="${escapeHtml(alt.modifier)}">
+                            <div class="ai-dd-alt-text">
+                                <span class="ai-dd-alt-noun">${escapeHtml(alt.noun)}</span>
+                                <span class="ai-dd-alt-sep">|</span>
+                                <span class="ai-dd-alt-mod">${escapeHtml(alt.modifier)}</span>
+                            </div>
+                            <div class="ai-dd-alt-actions">
+                                <span class="ai-dd-alt-conf">${alt.confidence}%</span>
+                                <button type="button" class="btn-ai-dd-apply-alt" data-noun="${escapeHtml(alt.noun)}" data-mod="${escapeHtml(alt.modifier)}">Apply</button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            ` : '';
+
+            bodyHtml = `
+                <div class="ai-dd-hero-card">
+                    <div class="ai-dd-hero-top">
+                        <span class="ai-dd-hero-badge">Top AI Prediction</span>
+                        <span class="ai-dd-conf-pill">${aiResult.confidence}% Match</span>
+                    </div>
+                    <div class="ai-dd-hero-nm">
+                        <span class="ai-dd-hero-noun">${escapeHtml(aiResult.noun)}</span>
+                        <span class="ai-dd-hero-sep">|</span>
+                        <span class="ai-dd-hero-mod">${escapeHtml(aiResult.modifier)}</span>
+                        ${aiResult.oem ? `<span class="ai-dd-oem-tag">${escapeHtml(aiResult.oem)}</span>` : ''}
+                    </div>
+                    <p class="ai-dd-reasoning">${escapeHtml(aiResult.reasoning || '')}</p>
+                    <button type="button" class="btn-ai-dd-apply-hero" id="btnAiDdApplyHero" data-noun="${escapeHtml(aiResult.noun)}" data-mod="${escapeHtml(aiResult.modifier)}" data-oem="${escapeHtml(aiResult.oem || item.oem || '')}">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                        <span>Apply This Classification</span>
+                    </button>
+                </div>
+                ${altsHtml}
+            `;
+        }
+
+        dropdown.innerHTML = `
+            <div class="ai-dd-header">
+                <div class="ai-dd-header-left">
+                    <svg class="ai-sparkle-icon" viewBox="0 0 24 24" width="15" height="15" fill="#7c3aed">
+                        <path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z"/>
+                    </svg>
+                    <span class="ai-dd-title">AI Material Classifier</span>
+                    <span class="ai-dd-model-tag">${modelSourceTag}</span>
+                </div>
+                <div class="ai-dd-header-actions">
+                    <button type="button" class="ai-dd-icon-btn" id="btnAiDdRefresh" title="Re-run AI Analysis">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="23 4 23 10 17 10"></polyline>
+                            <polyline points="1 20 1 14 7 14"></polyline>
+                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                        </svg>
+                    </button>
+                    <button type="button" class="ai-dd-close-btn" id="btnAiDdClose" title="Close">&times;</button>
+                </div>
+            </div>
+
+            <div class="ai-dd-context">
+                <span class="ai-dd-rec-pill">RECORD #${item.sno}</span>
+                <span class="ai-dd-desc" title="${escapeHtml(item.description)}">${escapeHtml(item.description)}</span>
+            </div>
+
+            ${keyBarHtml}
+
+            <div class="ai-dd-body">
+                ${bodyHtml}
+            </div>
+        `;
+
+        // Wire event listeners
+        const btnClose = dropdown.querySelector('#btnAiDdClose');
+        if (btnClose) {
+            btnClose.addEventListener('click', (e) => {
+                e.stopPropagation();
+                closeAiDropdown();
+            });
+        }
+
+        const btnRefresh = dropdown.querySelector('#btnAiDdRefresh');
+        if (btnRefresh) {
+            btnRefresh.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                delete state.aiCache[item.sno];
+                renderAiDropdownContent(item, null, apiKey, false, true, btnElement);
+                positionAiDropdown(btnElement, dropdown);
+                const freshResult = await queryOpenAiMaterialIntelligence(item.description, apiKey);
+                if (state.activeAiDropdownSno === item.sno) {
+                    state.aiCache[item.sno] = freshResult;
+                    renderAiDropdownContent(item, freshResult, apiKey, false, false, btnElement);
+                    positionAiDropdown(btnElement, dropdown);
+                }
+            });
+        }
+
+        const btnEditKey = dropdown.querySelector('#btnAiDdEditKey');
+        if (btnEditKey) {
+            btnEditKey.addEventListener('click', (e) => {
+                e.stopPropagation();
+                state.isEditingAiKeyInDropdown = true;
+                renderAiDropdownContent(item, aiResult, apiKey, true, false, btnElement);
+                positionAiDropdown(btnElement, dropdown);
+            });
+        }
+
+        const btnCancelKey = dropdown.querySelector('#btnAiDdCancelKey');
+        if (btnCancelKey) {
+            btnCancelKey.addEventListener('click', (e) => {
+                e.stopPropagation();
+                state.isEditingAiKeyInDropdown = false;
+                renderAiDropdownContent(item, aiResult, apiKey, false, false, btnElement);
+                positionAiDropdown(btnElement, dropdown);
+            });
+        }
+
+        const btnSaveKey = dropdown.querySelector('#btnAiDdSaveKey');
+        if (btnSaveKey) {
+            btnSaveKey.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const input = dropdown.querySelector('#inputAiDdApiKey');
+                const newKey = input ? input.value.trim() : '';
+                if (newKey) {
+                    localStorage.setItem('OPENAI_API_KEY', newKey);
+                    state.isEditingAiKeyInDropdown = false;
+                    delete state.aiCache[item.sno];
+                    showToast('OpenAI API Key saved successfully!', 'success');
+                    renderAiDropdownContent(item, null, newKey, false, true, btnElement);
+                    positionAiDropdown(btnElement, dropdown);
+                    const freshResult = await queryOpenAiMaterialIntelligence(item.description, newKey);
+                    if (state.activeAiDropdownSno === item.sno) {
+                        state.aiCache[item.sno] = freshResult;
+                        renderAiDropdownContent(item, freshResult, newKey, false, false, btnElement);
+                        positionAiDropdown(btnElement, dropdown);
+                    }
+                } else {
+                    showToast('Please enter a valid OpenAI API key', 'error');
+                }
+            });
+        }
+
+        const btnApplyHero = dropdown.querySelector('#btnAiDdApplyHero');
+        if (btnApplyHero) {
+            btnApplyHero.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const n = btnApplyHero.getAttribute('data-noun');
+                const m = btnApplyHero.getAttribute('data-mod');
+                const o = btnApplyHero.getAttribute('data-oem');
+                applyAiClassificationToRecord(item, n, m, o);
+            });
+        }
+
+        const altApplyBtns = dropdown.querySelectorAll('.btn-ai-dd-apply-alt, .ai-dd-alt-item');
+        altApplyBtns.forEach(el => {
+            el.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const n = el.getAttribute('data-noun');
+                const m = el.getAttribute('data-mod');
+                if (n && m) {
+                    applyAiClassificationToRecord(item, n, m, item.oem);
+                }
+            });
+        });
+    }
+
+    async function openAiDropdown(item, btnElement) {
+        if (state.activeAiDropdownSno) {
+            closeAiDropdown();
+        }
+
+        state.activeAiDropdownSno = item.sno;
+        state.activeRecord = item;
+        btnElement.classList.add('ai-btn-active');
+
+        let dropdown = document.getElementById('aiPopoverDropdown');
+        if (!dropdown) {
+            dropdown = document.createElement('div');
+            dropdown.id = 'aiPopoverDropdown';
+            dropdown.className = 'ai-popover-dropdown';
+            document.body.appendChild(dropdown);
+        }
+
+        const storedKey = localStorage.getItem('OPENAI_API_KEY') || '';
+        state.isEditingAiKeyInDropdown = !storedKey;
+
+        if (state.aiCache[item.sno]) {
+            renderAiDropdownContent(item, state.aiCache[item.sno], storedKey, state.isEditingAiKeyInDropdown, false, btnElement);
+            positionAiDropdown(btnElement, dropdown);
+        } else {
+            renderAiDropdownContent(item, null, storedKey, state.isEditingAiKeyInDropdown, true, btnElement);
+            positionAiDropdown(btnElement, dropdown);
+
+            const aiResult = await queryOpenAiMaterialIntelligence(item.description, storedKey);
+            if (state.activeAiDropdownSno === item.sno) {
+                state.aiCache[item.sno] = aiResult;
+                renderAiDropdownContent(item, aiResult, storedKey, state.isEditingAiKeyInDropdown, false, btnElement);
+                positionAiDropdown(btnElement, dropdown);
+            }
+        }
+    }
+
+    function toggleAiDropdown(item, btnElement) {
+        if (state.activeAiDropdownSno === item.sno) {
+            closeAiDropdown();
+        } else {
+            openAiDropdown(item, btnElement);
+        }
     }
 
     el.btnAcceptAISuggestion.addEventListener('click', () => {
@@ -5576,6 +5898,7 @@
     }
 
     function expandInlineAssign(sno, isDirectRender = false) {
+        closeAiDropdown();
         const parentTr = document.getElementById(`row-${sno}`);
         if (!parentTr) return;
 
@@ -5612,11 +5935,14 @@
                     </svg>
                     <span>Cancel</span>
                 </button>
-                <button class="row-action-btn btn-row-ai" data-action="ai" data-sno="${item.sno}" title="AI Enrichment &amp; Classification">
+                <button class="row-action-btn btn-row-ai ${state.activeAiDropdownSno === item.sno ? 'ai-btn-active' : ''}" data-action="ai" data-sno="${item.sno}" title="AI Enrichment &amp; Classification Dropdown">
                     <svg class="ai-sparkle-icon" viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
                         <path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z"/>
                     </svg>
                     <span>AI</span>
+                    <svg class="ai-dropdown-arrow" viewBox="0 0 24 24" width="10" height="10" fill="currentColor">
+                        <path d="M7 10l5 5 5-5z"/>
+                    </svg>
                 </button>
                 <button class="row-action-btn btn-row-prompt" data-action="prompt" data-sno="${item.sno}" title="Prompt Assistant">
                     <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
@@ -5661,11 +5987,14 @@
                         </svg>
                         <span>Assign</span>
                     </button>
-                    <button class="row-action-btn btn-row-ai" data-action="ai" data-sno="${sno}" title="AI Enrichment &amp; Classification">
+                    <button class="row-action-btn btn-row-ai ${state.activeAiDropdownSno === sno ? 'ai-btn-active' : ''}" data-action="ai" data-sno="${sno}" title="AI Enrichment &amp; Classification Dropdown">
                         <svg class="ai-sparkle-icon" viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
                             <path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z"/>
                         </svg>
                         <span>AI</span>
+                        <svg class="ai-dropdown-arrow" viewBox="0 0 24 24" width="10" height="10" fill="currentColor">
+                            <path d="M7 10l5 5 5-5z"/>
+                        </svg>
                     </button>
                     <button class="row-action-btn btn-row-prompt" data-action="prompt" data-sno="${sno}" title="Prompt Assistant">
                         <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
@@ -6080,6 +6409,7 @@
     }
 
     function expandInlinePrompt(sno, isDirectRender = false) {
+        closeAiDropdown();
         const parentTr = document.getElementById(`row-${sno}`);
         if (!parentTr) return;
 
@@ -6112,11 +6442,14 @@
                     </svg>
                     <span>Assign</span>
                 </button>
-                <button class="row-action-btn btn-row-ai" data-action="ai" data-sno="${item.sno}" title="AI Enrichment &amp; Classification">
+                <button class="row-action-btn btn-row-ai ${state.activeAiDropdownSno === item.sno ? 'ai-btn-active' : ''}" data-action="ai" data-sno="${item.sno}" title="AI Enrichment &amp; Classification Dropdown">
                     <svg class="ai-sparkle-icon" viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
                         <path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z"/>
                     </svg>
                     <span>AI</span>
+                    <svg class="ai-dropdown-arrow" viewBox="0 0 24 24" width="10" height="10" fill="currentColor">
+                        <path d="M7 10l5 5 5-5z"/>
+                    </svg>
                 </button>
                 <button class="row-action-btn btn-row-cancel btn-row-cancel-prompt" data-action="cancel-prompt" data-sno="${item.sno}" title="Close Attribute Template">
                     <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -6162,11 +6495,14 @@
                         </svg>
                         <span>Assign</span>
                     </button>
-                    <button class="row-action-btn btn-row-ai" data-action="ai" data-sno="${sno}" title="AI Enrichment &amp; Classification">
+                    <button class="row-action-btn btn-row-ai ${state.activeAiDropdownSno === sno ? 'ai-btn-active' : ''}" data-action="ai" data-sno="${sno}" title="AI Enrichment &amp; Classification Dropdown">
                         <svg class="ai-sparkle-icon" viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
                             <path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z"/>
                         </svg>
                         <span>AI</span>
+                        <svg class="ai-dropdown-arrow" viewBox="0 0 24 24" width="10" height="10" fill="currentColor">
+                            <path d="M7 10l5 5 5-5z"/>
+                        </svg>
                     </button>
                     <button class="row-action-btn btn-row-prompt" data-action="prompt" data-sno="${sno}" title="Prompt Assistant">
                         <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
@@ -6423,9 +6759,55 @@
         } else if (action === 'analyse') {
             openAnalyseModalForRecord(item);
         } else if (action === 'ai') {
-            openAIModalForRecord(item);
+            toggleAiDropdown(item, btn);
         }
     });
+
+    // Global listeners for closing/repositioning AI popover dropdown
+    document.addEventListener('click', (e) => {
+        if (!state.activeAiDropdownSno) return;
+        const dd = document.getElementById('aiPopoverDropdown');
+        const isInside = dd && dd.contains(e.target);
+        const isAiBtn = e.target.closest('.btn-row-ai');
+        if (!isInside && !isAiBtn) {
+            closeAiDropdown();
+        }
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && state.activeAiDropdownSno) {
+            closeAiDropdown();
+        }
+    });
+
+    window.addEventListener('resize', () => {
+        if (state.activeAiDropdownSno) {
+            const btn = document.querySelector(`.btn-row-ai[data-sno="${state.activeAiDropdownSno}"]`);
+            const dd = document.getElementById('aiPopoverDropdown');
+            if (btn && dd) {
+                positionAiDropdown(btn, dd);
+            } else {
+                closeAiDropdown();
+            }
+        }
+    });
+
+    if (el.tableWrapper) {
+        el.tableWrapper.addEventListener('scroll', () => {
+            if (state.activeAiDropdownSno) {
+                const btn = document.querySelector(`.btn-row-ai[data-sno="${state.activeAiDropdownSno}"]`);
+                const dd = document.getElementById('aiPopoverDropdown');
+                if (btn && dd) {
+                    const rect = btn.getBoundingClientRect();
+                    if (rect.bottom < 100 || rect.top > window.innerHeight - 30) {
+                        closeAiDropdown();
+                    } else {
+                        positionAiDropdown(btn, dd);
+                    }
+                }
+            }
+        });
+    }
 
     // Delegated input listener for real-time attribute editing
     el.tableBody.addEventListener('input', (e) => {
