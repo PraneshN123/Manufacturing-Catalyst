@@ -3130,11 +3130,10 @@
         selectedSnoList: new Set(),
         activeRecord: null,
         activeTaxonomyNoun: 'WRENCH',
-        expandedAssignSno: null,   // SNo of currently expanded AI suggestion inline drawer
+        expandedAssignSno: null,   // SNo of currently expanded Assign suggestion inline drawer
+        expandedAiSno: null,       // SNo of currently expanded OpenAI suggestion inline drawer
         expandedPromptSno: null,   // SNo of currently expanded Attribute Template inline drawer
-        activeAiDropdownSno: null, // SNo of currently open AI Popover Dropdown
         aiCache: {},               // Cache of AI results by SNo
-        isEditingAiKeyInDropdown: false,
         isLoading: false,
         catalystSource: 'none',    // 'zcql', 'api', 'cache', 'custom', 'none'
         hasUnsavedChanges: false,  // Tracks whether session data was modified
@@ -3781,7 +3780,7 @@
 
         const reportTable = el.table || document.getElementById('reportTable');
         if (reportTable) {
-            reportTable.classList.toggle('drawer-active-table', Boolean(state.expandedAssignSno || state.expandedPromptSno));
+            reportTable.classList.toggle('drawer-active-table', Boolean(state.expandedAssignSno || state.expandedAiSno || state.expandedPromptSno));
         }
 
         el.tableBody.innerHTML = '';
@@ -3790,8 +3789,9 @@
         pageItems.forEach(item => {
             const isSelected = state.selectedSnoList.has(item.sno);
             const isAssignExpanded = (state.expandedAssignSno === item.sno);
+            const isAiExpanded = (state.expandedAiSno === item.sno);
             const isPromptExpanded = (state.expandedPromptSno === item.sno);
-            const isAnyExpanded = isAssignExpanded || isPromptExpanded;
+            const isAnyExpanded = isAssignExpanded || isAiExpanded || isPromptExpanded;
             const tr = document.createElement('tr');
             tr.id = `row-${item.sno}`;
             tr.className = 'row-item' + (isSelected ? ' row-selected' : '') + (isAnyExpanded ? ' row-expanded-parent' : '');
@@ -3799,7 +3799,7 @@
             let actionsHtml = '';
             if (isAssignExpanded) {
                 actionsHtml = `
-                    <button class="row-action-btn btn-row-cancel" data-action="cancel" data-sno="${item.sno}" title="Close AI Suggestions">
+                    <button class="row-action-btn btn-row-cancel" data-action="cancel" data-sno="${item.sno}" title="Close Assign Suggestions">
                         <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                             <circle cx="12" cy="12" r="10"></circle>
                             <line x1="15" y1="9" x2="9" y2="15"></line>
@@ -3807,14 +3807,34 @@
                         </svg>
                         <span>Cancel</span>
                     </button>
-                    <button class="row-action-btn btn-row-ai ${state.activeAiDropdownSno === item.sno ? 'ai-btn-active' : ''}" data-action="ai" data-sno="${item.sno}" title="AI Enrichment &amp; Classification Dropdown">
+                    <button class="row-action-btn btn-row-ai" data-action="ai" data-sno="${item.sno}" title="AI Enrichment &amp; Classification">
                         <svg class="ai-sparkle-icon" viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
                             <path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z"/>
                         </svg>
                         <span>AI</span>
-                        <svg class="ai-dropdown-arrow" viewBox="0 0 24 24" width="10" height="10" fill="currentColor">
-                            <path d="M7 10l5 5 5-5z"/>
+                    </button>
+                    <button class="row-action-btn btn-row-prompt" data-action="prompt" data-sno="${item.sno}" title="Prompt Assistant">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
+                            <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
                         </svg>
+                        <span>Prompt</span>
+                    </button>
+                `;
+            } else if (isAiExpanded) {
+                actionsHtml = `
+                    <button class="row-action-btn btn-row-assign" data-action="assign" data-sno="${item.sno}" title="Assign Noun &amp; Modifier">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
+                            <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/>
+                        </svg>
+                        <span>Assign</span>
+                    </button>
+                    <button class="row-action-btn btn-row-cancel btn-row-cancel-ai" data-action="cancel-ai" data-sno="${item.sno}" title="Close AI Suggestions">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="15" y1="9" x2="9" y2="15"></line>
+                            <line x1="9" y1="9" x2="15" y2="15"></line>
+                        </svg>
+                        <span>Cancel</span>
                     </button>
                     <button class="row-action-btn btn-row-prompt" data-action="prompt" data-sno="${item.sno}" title="Prompt Assistant">
                         <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
@@ -3831,14 +3851,11 @@
                         </svg>
                         <span>Assign</span>
                     </button>
-                    <button class="row-action-btn btn-row-ai ${state.activeAiDropdownSno === item.sno ? 'ai-btn-active' : ''}" data-action="ai" data-sno="${item.sno}" title="AI Enrichment &amp; Classification Dropdown">
+                    <button class="row-action-btn btn-row-ai" data-action="ai" data-sno="${item.sno}" title="AI Enrichment &amp; Classification">
                         <svg class="ai-sparkle-icon" viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
                             <path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z"/>
                         </svg>
                         <span>AI</span>
-                        <svg class="ai-dropdown-arrow" viewBox="0 0 24 24" width="10" height="10" fill="currentColor">
-                            <path d="M7 10l5 5 5-5z"/>
-                        </svg>
                     </button>
                     <button class="row-action-btn btn-row-cancel btn-row-cancel-prompt" data-action="cancel-prompt" data-sno="${item.sno}" title="Close Attribute Template">
                         <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -3857,14 +3874,11 @@
                         </svg>
                         <span>Assign</span>
                     </button>
-                    <button class="row-action-btn btn-row-ai ${state.activeAiDropdownSno === item.sno ? 'ai-btn-active' : ''}" data-action="ai" data-sno="${item.sno}" title="AI Enrichment &amp; Classification Dropdown">
+                    <button class="row-action-btn btn-row-ai" data-action="ai" data-sno="${item.sno}" title="AI Enrichment &amp; Classification">
                         <svg class="ai-sparkle-icon" viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
                             <path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z"/>
                         </svg>
                         <span>AI</span>
-                        <svg class="ai-dropdown-arrow" viewBox="0 0 24 24" width="10" height="10" fill="currentColor">
-                            <path d="M7 10l5 5 5-5z"/>
-                        </svg>
                     </button>
                     <button class="row-action-btn btn-row-prompt" data-action="prompt" data-sno="${item.sno}" title="Prompt Assistant">
                         <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
@@ -3919,6 +3933,10 @@
                 const expandedRow = buildExpandedAiRow(item);
                 expandedRow.classList.add('ai-drawer-open');
                 fragment.appendChild(expandedRow);
+            } else if (isAiExpanded) {
+                const openAiRow = buildExpandedOpenAiRow(item);
+                openAiRow.classList.add('ai-drawer-open');
+                fragment.appendChild(openAiRow);
             } else if (isPromptExpanded) {
                 const promptRow = buildExpandedPromptRow(item);
                 promptRow.classList.add('prompt-drawer-open');
@@ -5237,315 +5255,449 @@
 
         showToast(`AI Match accepted: ${noun} | ${mod} for S.No #${item.sno}`, 'success');
         closeModal(el.aiModal);
-        closeAiDropdown();
     }
 
     // ==========================================================================
-    // 7.1. FLOATING AI POPOVER DROPDOWN (GPT-5.4-MINI ENRICHMENT)
+    // 7.1. OPENAI MATERIAL INTELLIGENCE ACCORDION DRAWER & TABLE (GPT-5.4-MINI)
     // ==========================================================================
 
-    function closeAiDropdown() {
-        if (!state.activeAiDropdownSno) return;
-        const prevBtn = document.querySelector(`.btn-row-ai[data-sno="${state.activeAiDropdownSno}"]`);
-        if (prevBtn) {
-            prevBtn.classList.remove('ai-btn-active');
-        }
-        const dd = document.getElementById('aiPopoverDropdown');
-        if (dd) {
-            dd.remove();
-        }
-        state.activeAiDropdownSno = null;
-        state.isEditingAiKeyInDropdown = false;
-    }
-
-    function positionAiDropdown(btnElement, dropdown) {
-        if (!btnElement || !dropdown) return;
-        const rect = btnElement.getBoundingClientRect();
-        const width = 380;
-        
-        let left = rect.right - width;
-        if (left < 10) left = 10;
-        if (left + width > window.innerWidth - 10) {
-            left = window.innerWidth - width - 10;
-        }
-
-        const spaceBelow = window.innerHeight - rect.bottom;
-        const dropdownHeight = dropdown.offsetHeight || 380;
-        let top;
-
-        if (spaceBelow < dropdownHeight + 10 && rect.top > dropdownHeight + 10) {
-            top = rect.top - dropdownHeight - 6;
-            dropdown.classList.add('ai-popover-above');
-        } else {
-            top = rect.bottom + 6;
-            dropdown.classList.remove('ai-popover-above');
-        }
-
-        dropdown.style.position = 'fixed';
-        dropdown.style.top = `${Math.max(6, Math.round(top))}px`;
-        dropdown.style.left = `${Math.round(left)}px`;
-        dropdown.style.zIndex = '100000';
-    }
-
-    function renderAiDropdownContent(item, aiResult, apiKey, isEditingKey, isLoading, btnElement) {
-        const dropdown = document.getElementById('aiPopoverDropdown');
-        if (!dropdown) return;
-
-        const maskedKey = apiKey ? (apiKey.substring(0, 7) + '...' + apiKey.substring(apiKey.length - 4)) : '';
-
-        const modelSourceTag = (aiResult && aiResult.source === 'openai-responses')
-            ? 'gpt-5.4-mini'
-            : (aiResult && aiResult.source === 'openai-chat')
-            ? 'gpt-4o-mini'
-            : 'Taxonomy Copilot';
-
-        let keyBarHtml = '';
-        if (isEditingKey || !apiKey) {
-            keyBarHtml = `
-                <div class="ai-dd-key-edit-bar">
-                    <div class="ai-dd-key-title-row">
-                        <span>🔑 OpenAI API Key Configuration</span>
-                        ${apiKey ? `<button type="button" class="btn-ai-dd-cancel-key" id="btnAiDdCancelKey">Cancel</button>` : ''}
-                    </div>
-                    <div class="ai-dd-key-input-row">
-                        <input type="password" id="inputAiDdApiKey" placeholder="sk-proj-..." value="${escapeHtml(apiKey || '')}" />
-                        <button type="button" id="btnAiDdSaveKey">Save &amp; Run</button>
-                    </div>
-                </div>
-            `;
-        } else {
-            keyBarHtml = `
-                <div class="ai-dd-key-status-bar">
-                    <div class="ai-dd-key-info">
-                        <span class="ai-dd-key-dot"></span>
-                        <span>API Key: <strong>${escapeHtml(maskedKey)}</strong></span>
-                    </div>
-                    <button type="button" id="btnAiDdEditKey" class="btn-ai-dd-edit-key">Change</button>
-                </div>
-            `;
-        }
-
-        let bodyHtml = '';
-        if (isLoading) {
-            bodyHtml = `
-                <div class="ai-dd-loading">
-                    <div class="ai-dd-spinner"></div>
-                    <div class="ai-dd-loading-title">Connecting to OpenAI gpt-5.4-mini...</div>
-                    <div class="ai-dd-loading-sub">Running deep taxonomy classification against material description</div>
-                </div>
-            `;
-        } else if (aiResult) {
-            const altsHtml = (aiResult.alternatives && aiResult.alternatives.length > 0) ? `
-                <div class="ai-dd-alts-label">Alternative Suggestions:</div>
-                <div class="ai-dd-alt-list">
-                    ${aiResult.alternatives.map((alt) => `
-                        <div class="ai-dd-alt-item" data-noun="${escapeHtml(alt.noun)}" data-mod="${escapeHtml(alt.modifier)}">
-                            <div class="ai-dd-alt-text">
-                                <span class="ai-dd-alt-noun">${escapeHtml(alt.noun)}</span>
-                                <span class="ai-dd-alt-sep">|</span>
-                                <span class="ai-dd-alt-mod">${escapeHtml(alt.modifier)}</span>
-                            </div>
-                            <div class="ai-dd-alt-actions">
-                                <span class="ai-dd-alt-conf">${alt.confidence}%</span>
-                                <button type="button" class="btn-ai-dd-apply-alt" data-noun="${escapeHtml(alt.noun)}" data-mod="${escapeHtml(alt.modifier)}">Apply</button>
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-            ` : '';
-
-            bodyHtml = `
-                <div class="ai-dd-hero-card">
-                    <div class="ai-dd-hero-top">
-                        <span class="ai-dd-hero-badge">Top AI Prediction</span>
-                        <span class="ai-dd-conf-pill">${aiResult.confidence}% Match</span>
-                    </div>
-                    <div class="ai-dd-hero-nm">
-                        <span class="ai-dd-hero-noun">${escapeHtml(aiResult.noun)}</span>
-                        <span class="ai-dd-hero-sep">|</span>
-                        <span class="ai-dd-hero-mod">${escapeHtml(aiResult.modifier)}</span>
-                        ${aiResult.oem ? `<span class="ai-dd-oem-tag">${escapeHtml(aiResult.oem)}</span>` : ''}
-                    </div>
-                    <p class="ai-dd-reasoning">${escapeHtml(aiResult.reasoning || '')}</p>
-                    <button type="button" class="btn-ai-dd-apply-hero" id="btnAiDdApplyHero" data-noun="${escapeHtml(aiResult.noun)}" data-mod="${escapeHtml(aiResult.modifier)}" data-oem="${escapeHtml(aiResult.oem || item.oem || '')}">
-                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="20 6 9 17 4 12"></polyline>
-                        </svg>
-                        <span>Apply This Classification</span>
-                    </button>
-                </div>
-                ${altsHtml}
-            `;
-        }
-
-        dropdown.innerHTML = `
-            <div class="ai-dd-header">
-                <div class="ai-dd-header-left">
-                    <svg class="ai-sparkle-icon" viewBox="0 0 24 24" width="15" height="15" fill="#7c3aed">
-                        <path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z"/>
-                    </svg>
-                    <span class="ai-dd-title">AI Material Classifier</span>
-                    <span class="ai-dd-model-tag">${modelSourceTag}</span>
-                </div>
-                <div class="ai-dd-header-actions">
-                    <button type="button" class="ai-dd-icon-btn" id="btnAiDdRefresh" title="Re-run AI Analysis">
-                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="23 4 23 10 17 10"></polyline>
-                            <polyline points="1 20 1 14 7 14"></polyline>
-                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
-                        </svg>
-                    </button>
-                    <button type="button" class="ai-dd-close-btn" id="btnAiDdClose" title="Close">&times;</button>
-                </div>
-            </div>
-
-            <div class="ai-dd-context">
-                <span class="ai-dd-rec-pill">RECORD #${item.sno}</span>
-                <span class="ai-dd-desc" title="${escapeHtml(item.description)}">${escapeHtml(item.description)}</span>
-            </div>
-
-            ${keyBarHtml}
-
-            <div class="ai-dd-body">
-                ${bodyHtml}
-            </div>
-        `;
-
-        // Wire event listeners
-        const btnClose = dropdown.querySelector('#btnAiDdClose');
-        if (btnClose) {
-            btnClose.addEventListener('click', (e) => {
-                e.stopPropagation();
-                closeAiDropdown();
-            });
-        }
-
-        const btnRefresh = dropdown.querySelector('#btnAiDdRefresh');
-        if (btnRefresh) {
-            btnRefresh.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                delete state.aiCache[item.sno];
-                renderAiDropdownContent(item, null, apiKey, false, true, btnElement);
-                positionAiDropdown(btnElement, dropdown);
-                const freshResult = await queryOpenAiMaterialIntelligence(item.description, apiKey);
-                if (state.activeAiDropdownSno === item.sno) {
-                    state.aiCache[item.sno] = freshResult;
-                    renderAiDropdownContent(item, freshResult, apiKey, false, false, btnElement);
-                    positionAiDropdown(btnElement, dropdown);
-                }
-            });
-        }
-
-        const btnEditKey = dropdown.querySelector('#btnAiDdEditKey');
-        if (btnEditKey) {
-            btnEditKey.addEventListener('click', (e) => {
-                e.stopPropagation();
-                state.isEditingAiKeyInDropdown = true;
-                renderAiDropdownContent(item, aiResult, apiKey, true, false, btnElement);
-                positionAiDropdown(btnElement, dropdown);
-            });
-        }
-
-        const btnCancelKey = dropdown.querySelector('#btnAiDdCancelKey');
-        if (btnCancelKey) {
-            btnCancelKey.addEventListener('click', (e) => {
-                e.stopPropagation();
-                state.isEditingAiKeyInDropdown = false;
-                renderAiDropdownContent(item, aiResult, apiKey, false, false, btnElement);
-                positionAiDropdown(btnElement, dropdown);
-            });
-        }
-
-        const btnSaveKey = dropdown.querySelector('#btnAiDdSaveKey');
-        if (btnSaveKey) {
-            btnSaveKey.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                const input = dropdown.querySelector('#inputAiDdApiKey');
-                const newKey = input ? input.value.trim() : '';
-                if (newKey) {
-                    localStorage.setItem('OPENAI_API_KEY', newKey);
-                    state.isEditingAiKeyInDropdown = false;
-                    delete state.aiCache[item.sno];
-                    showToast('OpenAI API Key saved successfully!', 'success');
-                    renderAiDropdownContent(item, null, newKey, false, true, btnElement);
-                    positionAiDropdown(btnElement, dropdown);
-                    const freshResult = await queryOpenAiMaterialIntelligence(item.description, newKey);
-                    if (state.activeAiDropdownSno === item.sno) {
-                        state.aiCache[item.sno] = freshResult;
-                        renderAiDropdownContent(item, freshResult, newKey, false, false, btnElement);
-                        positionAiDropdown(btnElement, dropdown);
-                    }
-                } else {
-                    showToast('Please enter a valid OpenAI API key', 'error');
-                }
-            });
-        }
-
-        const btnApplyHero = dropdown.querySelector('#btnAiDdApplyHero');
-        if (btnApplyHero) {
-            btnApplyHero.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const n = btnApplyHero.getAttribute('data-noun');
-                const m = btnApplyHero.getAttribute('data-mod');
-                const o = btnApplyHero.getAttribute('data-oem');
-                applyAiClassificationToRecord(item, n, m, o);
-            });
-        }
-
-        const altApplyBtns = dropdown.querySelectorAll('.btn-ai-dd-apply-alt, .ai-dd-alt-item');
-        altApplyBtns.forEach(el => {
-            el.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const n = el.getAttribute('data-noun');
-                const m = el.getAttribute('data-mod');
-                if (n && m) {
-                    applyAiClassificationToRecord(item, n, m, item.oem);
-                }
-            });
-        });
-    }
-
-    async function openAiDropdown(item, btnElement) {
-        if (state.activeAiDropdownSno) {
-            closeAiDropdown();
-        }
-
-        state.activeAiDropdownSno = item.sno;
-        state.activeRecord = item;
-        btnElement.classList.add('ai-btn-active');
-
-        let dropdown = document.getElementById('aiPopoverDropdown');
-        if (!dropdown) {
-            dropdown = document.createElement('div');
-            dropdown.id = 'aiPopoverDropdown';
-            dropdown.className = 'ai-popover-dropdown';
-            document.body.appendChild(dropdown);
-        }
+    function buildExpandedOpenAiRow(item) {
+        const tr = document.createElement('tr');
+        tr.id = `expanded-openai-row-${item.sno}`;
+        tr.className = 'expanded-ai-row expanded-openai-row';
 
         const storedKey = localStorage.getItem('OPENAI_API_KEY') || '';
-        state.isEditingAiKeyInDropdown = !storedKey;
+        const maskedKey = storedKey ? (storedKey.substring(0, 7) + '...' + storedKey.substring(storedKey.length - 4)) : '';
 
-        if (state.aiCache[item.sno]) {
-            renderAiDropdownContent(item, state.aiCache[item.sno], storedKey, state.isEditingAiKeyInDropdown, false, btnElement);
-            positionAiDropdown(btnElement, dropdown);
+        tr.innerHTML = `
+            <td colspan="7" class="expanded-ai-cell">
+                <div class="ai-drawer-animator">
+                    <div class="ai-drawer-content">
+                        <div class="ai-suggestions-card openai-suggestions-card">
+                            <div class="ai-suggestions-header openai-header">
+                                <div class="openai-header-left">
+                                    <svg class="ai-sparkle-icon" viewBox="0 0 24 24" width="18" height="18" fill="#7c3aed">
+                                        <path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z"/>
+                                    </svg>
+                                    <span class="ai-suggestions-title">OpenAI gpt-5.4-mini Suggested Nouns &amp; Modifiers</span>
+                                    <span class="openai-model-tag" id="openaiModelTag-${item.sno}">gpt-5.4-mini-2026-03-17</span>
+                                </div>
+                                <div class="openai-header-right">
+                                    <div class="openai-key-status" id="openaiKeyStatus-${item.sno}">
+                                        ${storedKey ? `
+                                            <span class="key-status-dot"></span>
+                                            <span>Live Key: <strong>${escapeHtml(maskedKey)}</strong></span>
+                                            <button type="button" class="btn-text-change-key" data-sno="${item.sno}">Change</button>
+                                        ` : `
+                                            <button type="button" class="btn-text-change-key" data-sno="${item.sno}">🔑 Enter OpenAI Key</button>
+                                        `}
+                                    </div>
+                                    <button type="button" class="btn-openai-refresh" data-sno="${item.sno}" title="Re-query OpenAI gpt-5.4-mini">
+                                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                            <polyline points="23 4 23 10 17 10"></polyline>
+                                            <polyline points="1 20 1 14 7 14"></polyline>
+                                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                                        </svg>
+                                        <span>Re-run AI</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="openai-key-edit-bar" id="openaiKeyEditBar-${item.sno}" style="display: none;">
+                                <div class="openai-key-edit-inner">
+                                    <span style="font-size: 11px; font-weight: 700; color: #7c3aed;">OpenAI API Key:</span>
+                                    <input type="password" class="input-openai-key" id="inputOpenAiKey-${item.sno}" placeholder="sk-proj-..." value="${escapeHtml(storedKey)}" />
+                                    <button type="button" class="btn-save-openai-key" data-sno="${item.sno}">Save &amp; Query</button>
+                                    <button type="button" class="btn-cancel-openai-key" data-sno="${item.sno}">Cancel</button>
+                                </div>
+                            </div>
+
+                            <div class="openai-body-container" id="openaiBodyContainer-${item.sno}">
+                                <div class="ai-loading-container" style="padding: 35px 20px; text-align: center;">
+                                    <div class="caching-spinner" style="display: inline-block; width: 34px; height: 34px; border: 3px solid #e9d5ff; border-top: 3px solid #7c3aed; border-radius: 50%; margin-bottom: 12px; animation: spin 0.8s linear infinite;"></div>
+                                    <div style="font-size: 14px; font-weight: 700; color: #4c1d95;">Connecting to OpenAI gpt-5.4-mini-2026-03-17...</div>
+                                    <div style="font-size: 12px; color: #7c3aed; margin-top: 4px;">Executing deep neural taxonomy classification against material description</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </td>
+        `;
+
+        return tr;
+    }
+
+    function renderOpenAiDrawerContent(item, aiResult, isLoading) {
+        const container = document.getElementById(`openaiBodyContainer-${item.sno}`);
+        if (!container) return;
+
+        if (isLoading) {
+            container.innerHTML = `
+                <div class="ai-loading-container" style="padding: 35px 20px; text-align: center;">
+                    <div class="caching-spinner" style="display: inline-block; width: 34px; height: 34px; border: 3px solid #e9d5ff; border-top: 3px solid #7c3aed; border-radius: 50%; margin-bottom: 12px; animation: spin 0.8s linear infinite;"></div>
+                    <div style="font-size: 14px; font-weight: 700; color: #4c1d95;">Connecting to OpenAI gpt-5.4-mini-2026-03-17...</div>
+                    <div style="font-size: 12px; color: #7c3aed; margin-top: 4px;">Executing deep neural taxonomy classification against material description</div>
+                </div>
+            `;
+            return;
+        }
+
+        if (!aiResult) return;
+
+        // Build suggestions list
+        const allSuggestions = [];
+
+        // 1. Top Match
+        allSuggestions.push({
+            noun: aiResult.noun,
+            modifier: aiResult.modifier,
+            oem: aiResult.oem || item.oem || 'NON OEM',
+            accuracy: aiResult.confidence || 98,
+            isTop: true
+        });
+
+        // 2. Alternatives from OpenAI
+        if (aiResult.alternatives && Array.isArray(aiResult.alternatives)) {
+            aiResult.alternatives.forEach(alt => {
+                if (alt.noun && alt.modifier && (alt.noun !== aiResult.noun || alt.modifier !== aiResult.modifier)) {
+                    allSuggestions.push({
+                        noun: alt.noun,
+                        modifier: alt.modifier,
+                        oem: aiResult.oem || item.oem || 'NON OEM',
+                        accuracy: alt.confidence || 85,
+                        isTop: false
+                    });
+                }
+            });
+        }
+
+        // 3. Fallback library suggestions to guarantee a full table
+        const libSugs = generateTop10LibrarySuggestions(item.description, item);
+        libSugs.forEach(lib => {
+            if (!allSuggestions.some(s => s.noun === lib.noun && s.modifier === lib.modifier) && allSuggestions.length < 6) {
+                allSuggestions.push({
+                    noun: lib.noun,
+                    modifier: lib.modifier,
+                    oem: item.oem || 'NON OEM',
+                    accuracy: lib.accuracy || 72,
+                    isTop: false
+                });
+            }
+        });
+
+        const rowsHtml = allSuggestions.map((sug, idx) => {
+            const num = idx + 1;
+            const colorClass = sug.accuracy >= 80 ? 'acc-green' : sug.accuracy >= 70 ? 'acc-orange' : 'acc-red';
+            const isCurrentlyApplied = (
+                item.nmStatus === 'ASSIGNED' &&
+                item.modifier &&
+                item.modifier !== '--' &&
+                item.modifier !== 'PENDING' &&
+                item.noun === sug.noun &&
+                item.modifier === sug.modifier
+            );
+
+            return `
+                <tr class="${isCurrentlyApplied ? 'sug-applied' : ''}">
+                    <td class="col-sug-num">
+                        ${num}
+                        ${sug.isTop ? `<span class="top-ai-star" title="OpenAI Top Recommendation">TOP</span>` : ''}
+                    </td>
+                    <td class="col-sug-noun"><strong>${escapeHtml(sug.noun)}</strong></td>
+                    <td class="col-sug-mod">${escapeHtml(sug.modifier)}</td>
+                    <td class="col-sug-oem">
+                        <span class="oem-status-pill ${sug.oem === 'OEM' ? 'oem-pill-yes' : 'oem-pill-non'}">
+                            ${escapeHtml(sug.oem || 'NON OEM')}
+                        </span>
+                    </td>
+                    <td class="col-sug-acc">
+                        <div class="sug-acc-wrapper">
+                            <div class="sug-acc-track">
+                                <div class="sug-acc-fill ${colorClass}" style="width: ${sug.accuracy}%;"></div>
+                            </div>
+                            <span class="sug-acc-val ${colorClass}">${sug.accuracy}%</span>
+                        </div>
+                    </td>
+                    <td class="col-sug-act">
+                        <div class="sug-actions">
+                            <button type="button" class="btn-sug-action btn-sug-apply ${isCurrentlyApplied ? 'applied' : ''}" 
+                                    data-action="apply-openai-sug" 
+                                    data-sno="${item.sno}" 
+                                    data-noun="${escapeHtml(sug.noun)}" 
+                                    data-mod="${escapeHtml(sug.modifier)}" 
+                                    data-oem="${escapeHtml(sug.oem || item.oem || 'NON OEM')}"
+                                    title="Apply this AI Classification">
+                                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                </svg>
+                                <span>${isCurrentlyApplied ? 'Applied' : 'Apply'}</span>
+                            </button>
+                            <button type="button" class="btn-sug-action btn-sug-view" 
+                                    data-action="view-sug" 
+                                    data-noun="${escapeHtml(sug.noun)}" 
+                                    data-mod="${escapeHtml(sug.modifier)}" 
+                                    title="View Taxonomy Dictionary">
+                                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
+                                <span>View</span>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        container.innerHTML = `
+            <div class="ai-suggestions-table-wrapper">
+                <table class="ai-suggestions-table openai-suggestions-table">
+                    <thead>
+                        <tr>
+                            <th class="col-sug-num">#</th>
+                            <th class="col-sug-noun">SUGGESTED NOUN</th>
+                            <th class="col-sug-mod">SUGGESTED MODIFIER</th>
+                            <th class="col-sug-oem">OEM STATUS</th>
+                            <th class="col-sug-acc">ACCURACY</th>
+                            <th class="col-sug-act">ACTION</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml}
+                    </tbody>
+                </table>
+            </div>
+            ${aiResult.reasoning ? `
+                <div class="openai-reasoning-footer">
+                    <span class="openai-reasoning-label">ENGINEERING REASONING:</span>
+                    <span class="openai-reasoning-text">${escapeHtml(aiResult.reasoning)}</span>
+                </div>
+            ` : ''}
+        `;
+
+        const modelTag = document.getElementById(`openaiModelTag-${item.sno}`);
+        if (modelTag) {
+            if (aiResult.source === 'openai-responses') modelTag.textContent = 'gpt-5.4-mini-2026-03-17';
+            else if (aiResult.source === 'openai-chat') modelTag.textContent = 'gpt-4o-mini';
+            else modelTag.textContent = 'Taxonomy AI Engine';
+        }
+    }
+
+    function applyOpenAiSuggestion(sno, noun, modifier, oem = null) {
+        const item = state.allRecords.find(r => r.sno === sno);
+        if (!item) return;
+
+        item.noun = noun;
+        item.modifier = modifier;
+        item.nounModifier = (modifier && modifier !== '--') ? `${noun}|${modifier}` : noun;
+        item.nmStatus = 'ASSIGNED';
+        if (oem && oem !== '--') {
+            item.oem = oem;
+        }
+        state.hasUnsavedChanges = true;
+
+        updateStatsCounters();
+
+        // Directly update parent row in the DOM without wiping the table
+        const parentTr = document.getElementById(`row-${sno}`);
+        if (parentTr) {
+            const nounCell = parentTr.querySelector('.cell-noun');
+            if (nounCell) {
+                nounCell.innerHTML = `<span class="noun-badge badge-updated-flash">${escapeHtml(noun)}</span>`;
+            }
+            const modCell = parentTr.querySelector('.cell-modifier');
+            if (modCell) {
+                modCell.innerHTML = (modifier && modifier !== '--')
+                    ? `<span class="modifier-badge badge-updated-flash"><span class="nm-noun">${escapeHtml(noun)}</span><span class="nm-sep">|</span><span class="nm-mod">${escapeHtml(modifier)}</span></span>`
+                    : `<span class="modifier-badge modifier-pending">--</span>`;
+            }
+            if (oem && oem !== '--') {
+                const oemSelect = parentTr.querySelector('.oem-badge-select');
+                if (oemSelect) {
+                    oemSelect.value = oem;
+                    oemSelect.classList.remove('oem-badge-yes', 'oem-badge-non', 'oem-badge-pending');
+                    if (oem === 'OEM') oemSelect.classList.add('oem-badge-yes');
+                    else if (oem === 'NON OEM') oemSelect.classList.add('oem-badge-non');
+                    else oemSelect.classList.add('oem-badge-pending');
+                }
+            }
+        }
+
+        // Highlight applied suggestion inside the OpenAI drawer
+        const drawerTr = document.getElementById(`expanded-openai-row-${sno}`);
+        if (drawerTr) {
+            const rows = drawerTr.querySelectorAll('.ai-suggestions-table tbody tr');
+            rows.forEach(r => {
+                const rNoun = r.querySelector('.col-sug-noun strong')?.textContent?.trim();
+                const rMod = r.querySelector('.col-sug-mod')?.textContent?.trim();
+                const applyBtn = r.querySelector('.btn-sug-apply');
+
+                if (rNoun === noun && rMod === modifier) {
+                    r.classList.add('sug-applied');
+                    if (applyBtn) {
+                        applyBtn.classList.add('applied');
+                        const span = applyBtn.querySelector('span');
+                        if (span) span.textContent = 'Applied';
+                    }
+                } else {
+                    r.classList.remove('sug-applied');
+                    if (applyBtn) {
+                        applyBtn.classList.remove('applied');
+                        const span = applyBtn.querySelector('span');
+                        if (span) span.textContent = 'Apply';
+                    }
+                }
+            });
+        }
+
+        showToast(`Successfully applied AI suggestion "${noun} | ${modifier}" to S.No #${sno}`, 'success');
+    }
+
+    function expandInlineOpenAi(sno, isDirectRender = false) {
+        const parentTr = document.getElementById(`row-${sno}`);
+        if (!parentTr) return;
+
+        // Mutual exclusivity: collapse any open Assign or Prompt drawer first
+        if (state.expandedAssignSno) {
+            collapseInlineAssign(state.expandedAssignSno, true);
+        }
+        if (state.expandedPromptSno) {
+            collapseInlinePrompt(state.expandedPromptSno, true);
+        }
+        if (state.expandedAiSno && state.expandedAiSno !== sno) {
+            collapseInlineOpenAi(state.expandedAiSno, true);
+        }
+
+        const item = state.allRecords.find(r => r.sno === sno);
+        if (!item) return;
+
+        state.expandedAiSno = sno;
+        parentTr.classList.add('row-expanded-parent');
+
+        const reportTable = el.table || document.getElementById('reportTable');
+        if (reportTable) {
+            reportTable.classList.add('drawer-active-table');
+        }
+
+        // Update parent row action buttons: AI strictly switches to Cancel
+        const actionsCell = parentTr.querySelector('.cell-actions .actions-wrapper');
+        if (actionsCell) {
+            actionsCell.innerHTML = `
+                <button class="row-action-btn btn-row-assign" data-action="assign" data-sno="${sno}" title="Assign Noun &amp; Modifier">
+                    <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
+                        <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/>
+                    </svg>
+                    <span>Assign</span>
+                </button>
+                <button class="row-action-btn btn-row-cancel btn-row-cancel-ai" data-action="cancel-ai" data-sno="${sno}" title="Close AI Suggestions">
+                    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="15" y1="9" x2="9" y2="15"></line>
+                        <line x1="9" y1="9" x2="15" y2="15"></line>
+                    </svg>
+                    <span>Cancel</span>
+                </button>
+                <button class="row-action-btn btn-row-prompt" data-action="prompt" data-sno="${sno}" title="Prompt Assistant">
+                    <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
+                        <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
+                    </svg>
+                    <span>Prompt</span>
+                </button>
+            `;
+        }
+
+        // Check if expanded row is already in DOM
+        let expandedTr = document.getElementById(`expanded-openai-row-${sno}`);
+        if (!expandedTr) {
+            expandedTr = buildExpandedOpenAiRow(item);
+            parentTr.after(expandedTr);
+        }
+
+        if (isDirectRender) {
+            expandedTr.classList.add('ai-drawer-open');
         } else {
-            renderAiDropdownContent(item, null, storedKey, state.isEditingAiKeyInDropdown, true, btnElement);
-            positionAiDropdown(btnElement, dropdown);
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    if (expandedTr) expandedTr.classList.add('ai-drawer-open');
+                });
+            });
+        }
 
-            const aiResult = await queryOpenAiMaterialIntelligence(item.description, storedKey);
-            if (state.activeAiDropdownSno === item.sno) {
-                state.aiCache[item.sno] = aiResult;
-                renderAiDropdownContent(item, aiResult, storedKey, state.isEditingAiKeyInDropdown, false, btnElement);
-                positionAiDropdown(btnElement, dropdown);
+        // Query OpenAI or load cached result
+        const storedKey = localStorage.getItem('OPENAI_API_KEY') || '';
+        if (state.aiCache[sno]) {
+            renderOpenAiDrawerContent(item, state.aiCache[sno], false);
+        } else {
+            renderOpenAiDrawerContent(item, null, true);
+            queryOpenAiMaterialIntelligence(item.description, storedKey).then(aiResult => {
+                if (state.expandedAiSno === sno) {
+                    state.aiCache[sno] = aiResult;
+                    renderOpenAiDrawerContent(item, aiResult, false);
+                }
+            });
+        }
+    }
+
+    function collapseInlineOpenAi(sno, immediate = false) {
+        const parentTr = document.getElementById(`row-${sno}`);
+        const expandedTr = document.getElementById(`expanded-openai-row-${sno}`);
+
+        if (parentTr) {
+            parentTr.classList.remove('row-expanded-parent');
+            const actionsCell = parentTr.querySelector('.cell-actions .actions-wrapper');
+            if (actionsCell) {
+                actionsCell.innerHTML = `
+                    <button class="row-action-btn btn-row-assign" data-action="assign" data-sno="${sno}" title="Assign Noun &amp; Modifier">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
+                            <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/>
+                        </svg>
+                        <span>Assign</span>
+                    </button>
+                    <button class="row-action-btn btn-row-ai" data-action="ai" data-sno="${sno}" title="AI Enrichment &amp; Classification">
+                        <svg class="ai-sparkle-icon" viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
+                            <path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z"/>
+                        </svg>
+                        <span>AI</span>
+                    </button>
+                    <button class="row-action-btn btn-row-prompt" data-action="prompt" data-sno="${sno}" title="Prompt Assistant">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
+                            <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
+                        </svg>
+                        <span>Prompt</span>
+                    </button>
+                `;
+            }
+        }
+
+        if (state.expandedAiSno === sno) {
+            state.expandedAiSno = null;
+        }
+
+        const reportTable = el.table || document.getElementById('reportTable');
+        if (reportTable && !state.expandedAssignSno && !state.expandedPromptSno) {
+            reportTable.classList.remove('drawer-active-table');
+        }
+
+        if (expandedTr) {
+            if (immediate) {
+                expandedTr.remove();
+            } else {
+                expandedTr.classList.remove('ai-drawer-open');
+                setTimeout(() => {
+                    if (expandedTr && !expandedTr.classList.contains('ai-drawer-open')) {
+                        expandedTr.remove();
+                    }
+                }, 290);
             }
         }
     }
 
-    function toggleAiDropdown(item, btnElement) {
-        if (state.activeAiDropdownSno === item.sno) {
-            closeAiDropdown();
+    function toggleInlineOpenAi(sno) {
+        if (state.expandedAiSno === sno) {
+            collapseInlineOpenAi(sno);
         } else {
-            openAiDropdown(item, btnElement);
+            expandInlineOpenAi(sno);
         }
     }
 
@@ -5898,11 +6050,13 @@
     }
 
     function expandInlineAssign(sno, isDirectRender = false) {
-        closeAiDropdown();
         const parentTr = document.getElementById(`row-${sno}`);
         if (!parentTr) return;
 
-        // Mutual exclusivity: collapse any open Prompt drawer first
+        // Mutual exclusivity: collapse any open AI or Prompt drawer first
+        if (state.expandedAiSno) {
+            collapseInlineOpenAi(state.expandedAiSno, true);
+        }
         if (state.expandedPromptSno) {
             collapseInlinePrompt(state.expandedPromptSno, true);
         }
@@ -5927,7 +6081,7 @@
         const actionsCell = parentTr.querySelector('.cell-actions .actions-wrapper');
         if (actionsCell) {
             actionsCell.innerHTML = `
-                <button class="row-action-btn btn-row-cancel" data-action="cancel" data-sno="${item.sno}" title="Close AI Suggestions">
+                <button class="row-action-btn btn-row-cancel" data-action="cancel" data-sno="${item.sno}" title="Close Assign Suggestions">
                     <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="10"></circle>
                         <line x1="15" y1="9" x2="9" y2="15"></line>
@@ -5935,14 +6089,11 @@
                     </svg>
                     <span>Cancel</span>
                 </button>
-                <button class="row-action-btn btn-row-ai ${state.activeAiDropdownSno === item.sno ? 'ai-btn-active' : ''}" data-action="ai" data-sno="${item.sno}" title="AI Enrichment &amp; Classification Dropdown">
+                <button class="row-action-btn btn-row-ai" data-action="ai" data-sno="${item.sno}" title="AI Enrichment &amp; Classification">
                     <svg class="ai-sparkle-icon" viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
                         <path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z"/>
                     </svg>
                     <span>AI</span>
-                    <svg class="ai-dropdown-arrow" viewBox="0 0 24 24" width="10" height="10" fill="currentColor">
-                        <path d="M7 10l5 5 5-5z"/>
-                    </svg>
                 </button>
                 <button class="row-action-btn btn-row-prompt" data-action="prompt" data-sno="${item.sno}" title="Prompt Assistant">
                     <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
@@ -5987,14 +6138,11 @@
                         </svg>
                         <span>Assign</span>
                     </button>
-                    <button class="row-action-btn btn-row-ai ${state.activeAiDropdownSno === sno ? 'ai-btn-active' : ''}" data-action="ai" data-sno="${sno}" title="AI Enrichment &amp; Classification Dropdown">
+                    <button class="row-action-btn btn-row-ai" data-action="ai" data-sno="${sno}" title="AI Enrichment &amp; Classification">
                         <svg class="ai-sparkle-icon" viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
                             <path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z"/>
                         </svg>
                         <span>AI</span>
-                        <svg class="ai-dropdown-arrow" viewBox="0 0 24 24" width="10" height="10" fill="currentColor">
-                            <path d="M7 10l5 5 5-5z"/>
-                        </svg>
                     </button>
                     <button class="row-action-btn btn-row-prompt" data-action="prompt" data-sno="${sno}" title="Prompt Assistant">
                         <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
@@ -6011,7 +6159,7 @@
         }
 
         const reportTable = el.table || document.getElementById('reportTable');
-        if (reportTable && !state.expandedPromptSno) {
+        if (reportTable && !state.expandedAiSno && !state.expandedPromptSno) {
             reportTable.classList.remove('drawer-active-table');
         }
 
@@ -6409,13 +6557,15 @@
     }
 
     function expandInlinePrompt(sno, isDirectRender = false) {
-        closeAiDropdown();
         const parentTr = document.getElementById(`row-${sno}`);
         if (!parentTr) return;
 
-        // Mutual exclusivity: collapse any open Assign or other Prompt drawer first
+        // Mutual exclusivity: collapse any open Assign, AI, or other Prompt drawer first
         if (state.expandedAssignSno) {
             collapseInlineAssign(state.expandedAssignSno, true);
+        }
+        if (state.expandedAiSno) {
+            collapseInlineOpenAi(state.expandedAiSno, true);
         }
         if (state.expandedPromptSno && state.expandedPromptSno !== sno) {
             collapseInlinePrompt(state.expandedPromptSno, true);
@@ -6442,14 +6592,11 @@
                     </svg>
                     <span>Assign</span>
                 </button>
-                <button class="row-action-btn btn-row-ai ${state.activeAiDropdownSno === item.sno ? 'ai-btn-active' : ''}" data-action="ai" data-sno="${item.sno}" title="AI Enrichment &amp; Classification Dropdown">
+                <button class="row-action-btn btn-row-ai" data-action="ai" data-sno="${item.sno}" title="AI Enrichment &amp; Classification">
                     <svg class="ai-sparkle-icon" viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
                         <path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z"/>
                     </svg>
                     <span>AI</span>
-                    <svg class="ai-dropdown-arrow" viewBox="0 0 24 24" width="10" height="10" fill="currentColor">
-                        <path d="M7 10l5 5 5-5z"/>
-                    </svg>
                 </button>
                 <button class="row-action-btn btn-row-cancel btn-row-cancel-prompt" data-action="cancel-prompt" data-sno="${item.sno}" title="Close Attribute Template">
                     <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -6495,14 +6642,11 @@
                         </svg>
                         <span>Assign</span>
                     </button>
-                    <button class="row-action-btn btn-row-ai ${state.activeAiDropdownSno === sno ? 'ai-btn-active' : ''}" data-action="ai" data-sno="${sno}" title="AI Enrichment &amp; Classification Dropdown">
+                    <button class="row-action-btn btn-row-ai" data-action="ai" data-sno="${sno}" title="AI Enrichment &amp; Classification">
                         <svg class="ai-sparkle-icon" viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
                             <path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z"/>
                         </svg>
                         <span>AI</span>
-                        <svg class="ai-dropdown-arrow" viewBox="0 0 24 24" width="10" height="10" fill="currentColor">
-                            <path d="M7 10l5 5 5-5z"/>
-                        </svg>
                     </button>
                     <button class="row-action-btn btn-row-prompt" data-action="prompt" data-sno="${sno}" title="Prompt Assistant">
                         <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
@@ -6519,7 +6663,7 @@
         }
 
         const reportTable = el.table || document.getElementById('reportTable');
-        if (reportTable && !state.expandedAssignSno) {
+        if (reportTable && !state.expandedAssignSno && !state.expandedAiSno) {
             reportTable.classList.remove('drawer-active-table');
         }
 
@@ -6678,13 +6822,19 @@
 
     // Delegated actions on tbody
     el.tableBody.addEventListener('click', (e) => {
-        // 1. Suggestion sub-table Apply button
+        // 1. Suggestion sub-table Apply button (Assign library)
         const applySugBtn = e.target.closest('.btn-sug-apply');
         if (applySugBtn) {
+            const action = applySugBtn.getAttribute('data-action');
             const sno = parseInt(applySugBtn.getAttribute('data-sno'), 10);
             const noun = applySugBtn.getAttribute('data-noun');
             const mod = applySugBtn.getAttribute('data-mod');
-            applyLibrarySuggestion(sno, noun, mod);
+            if (action === 'apply-openai-sug') {
+                const oem = applySugBtn.getAttribute('data-oem');
+                applyOpenAiSuggestion(sno, noun, mod, oem);
+            } else {
+                applyLibrarySuggestion(sno, noun, mod);
+            }
             return;
         }
 
@@ -6697,7 +6847,85 @@
             return;
         }
 
-        // 3. Prompt Drawer: Template tab switch
+        // 3. OpenAI Drawer: Re-run AI Analysis
+        const refreshAiBtn = e.target.closest('.btn-openai-refresh');
+        if (refreshAiBtn) {
+            const sno = parseInt(refreshAiBtn.getAttribute('data-sno'), 10);
+            const item = state.allRecords.find(r => r.sno === sno);
+            if (item) {
+                delete state.aiCache[sno];
+                renderOpenAiDrawerContent(item, null, true);
+                const storedKey = localStorage.getItem('OPENAI_API_KEY') || '';
+                queryOpenAiMaterialIntelligence(item.description, storedKey).then(aiResult => {
+                    if (state.expandedAiSno === sno) {
+                        state.aiCache[sno] = aiResult;
+                        renderOpenAiDrawerContent(item, aiResult, false);
+                    }
+                });
+            }
+            return;
+        }
+
+        // 4. OpenAI Drawer: Toggle Key Change Box
+        const changeKeyBtn = e.target.closest('.btn-text-change-key');
+        if (changeKeyBtn) {
+            const sno = parseInt(changeKeyBtn.getAttribute('data-sno'), 10);
+            const editBar = document.getElementById(`openaiKeyEditBar-${sno}`);
+            if (editBar) {
+                editBar.style.display = (editBar.style.display === 'none' || !editBar.style.display) ? 'block' : 'none';
+            }
+            return;
+        }
+
+        // 5. OpenAI Drawer: Save API Key
+        const saveKeyBtn = e.target.closest('.btn-save-openai-key');
+        if (saveKeyBtn) {
+            const sno = parseInt(saveKeyBtn.getAttribute('data-sno'), 10);
+            const input = document.getElementById(`inputOpenAiKey-${sno}`);
+            const newKey = input ? input.value.trim() : '';
+            if (newKey) {
+                localStorage.setItem('OPENAI_API_KEY', newKey);
+                delete state.aiCache[sno];
+                const editBar = document.getElementById(`openaiKeyEditBar-${sno}`);
+                if (editBar) editBar.style.display = 'none';
+
+                const keyStatus = document.getElementById(`openaiKeyStatus-${sno}`);
+                const maskedKey = newKey.substring(0, 7) + '...' + newKey.substring(newKey.length - 4);
+                if (keyStatus) {
+                    keyStatus.innerHTML = `
+                        <span class="key-status-dot"></span>
+                        <span>Live Key: <strong>${escapeHtml(maskedKey)}</strong></span>
+                        <button type="button" class="btn-text-change-key" data-sno="${sno}">Change</button>
+                    `;
+                }
+
+                showToast('OpenAI API Key saved successfully!', 'success');
+                const item = state.allRecords.find(r => r.sno === sno);
+                if (item) {
+                    renderOpenAiDrawerContent(item, null, true);
+                    queryOpenAiMaterialIntelligence(item.description, newKey).then(aiResult => {
+                        if (state.expandedAiSno === sno) {
+                            state.aiCache[sno] = aiResult;
+                            renderOpenAiDrawerContent(item, aiResult, false);
+                        }
+                    });
+                }
+            } else {
+                showToast('Please enter a valid OpenAI API key', 'error');
+            }
+            return;
+        }
+
+        // 6. OpenAI Drawer: Cancel Key Edit
+        const cancelKeyBtn = e.target.closest('.btn-cancel-openai-key');
+        if (cancelKeyBtn) {
+            const sno = parseInt(cancelKeyBtn.getAttribute('data-sno'), 10);
+            const editBar = document.getElementById(`openaiKeyEditBar-${sno}`);
+            if (editBar) editBar.style.display = 'none';
+            return;
+        }
+
+        // 7. Prompt Drawer: Template tab switch
         const tplBtn = e.target.closest('[data-action="switch-template"]');
         if (tplBtn) {
             const sno = parseInt(tplBtn.getAttribute('data-sno'), 10);
@@ -6706,7 +6934,7 @@
             return;
         }
 
-        // 4. Prompt Drawer: Analyse button
+        // 8. Prompt Drawer: Analyse button
         const analysePromptBtn = e.target.closest('[data-action="analyse-prompt"]');
         if (analysePromptBtn) {
             const sno = parseInt(analysePromptBtn.getAttribute('data-sno'), 10);
@@ -6714,7 +6942,7 @@
             return;
         }
 
-        // 5. Prompt Drawer: Delete attribute button (red minus)
+        // 9. Prompt Drawer: Delete attribute button (red minus)
         const delAttrBtn = e.target.closest('[data-action="delete-prompt-attr"]');
         if (delAttrBtn) {
             const sno = parseInt(delAttrBtn.getAttribute('data-sno'), 10);
@@ -6723,7 +6951,7 @@
             return;
         }
 
-        // 6. Prompt Drawer: Add attribute button
+        // 10. Prompt Drawer: Add attribute button
         const addAttrBtn = e.target.closest('[data-action="add-prompt-attr"]');
         if (addAttrBtn) {
             const sno = parseInt(addAttrBtn.getAttribute('data-sno'), 10);
@@ -6731,7 +6959,7 @@
             return;
         }
 
-        // 7. Prompt Drawer: Quick OEM toggle
+        // 11. Prompt Drawer: Quick OEM toggle
         const toggleOemQuick = e.target.closest('[data-action="toggle-prompt-oem-quick"]');
         if (toggleOemQuick) {
             const sno = parseInt(toggleOemQuick.getAttribute('data-sno'), 10);
@@ -6739,7 +6967,7 @@
             return;
         }
 
-        // 8. Parent row action buttons
+        // 12. Parent row action buttons (Assign, AI, Prompt, Cancel)
         const btn = e.target.closest('.row-action-btn');
         if (!btn) return;
 
@@ -6750,64 +6978,20 @@
 
         if (action === 'assign') {
             toggleInlineAssign(sno);
-        } else if (action === 'cancel') {
-            toggleInlineAssign(sno);
+        } else if (action === 'cancel' || action === 'cancel-assign') {
+            collapseInlineAssign(sno);
+        } else if (action === 'ai') {
+            toggleInlineOpenAi(sno);
+        } else if (action === 'cancel-ai') {
+            collapseInlineOpenAi(sno);
         } else if (action === 'prompt') {
             toggleInlinePrompt(sno);
         } else if (action === 'cancel-prompt') {
             collapseInlinePrompt(sno);
         } else if (action === 'analyse') {
             openAnalyseModalForRecord(item);
-        } else if (action === 'ai') {
-            toggleAiDropdown(item, btn);
         }
     });
-
-    // Global listeners for closing/repositioning AI popover dropdown
-    document.addEventListener('click', (e) => {
-        if (!state.activeAiDropdownSno) return;
-        const dd = document.getElementById('aiPopoverDropdown');
-        const isInside = dd && dd.contains(e.target);
-        const isAiBtn = e.target.closest('.btn-row-ai');
-        if (!isInside && !isAiBtn) {
-            closeAiDropdown();
-        }
-    });
-
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && state.activeAiDropdownSno) {
-            closeAiDropdown();
-        }
-    });
-
-    window.addEventListener('resize', () => {
-        if (state.activeAiDropdownSno) {
-            const btn = document.querySelector(`.btn-row-ai[data-sno="${state.activeAiDropdownSno}"]`);
-            const dd = document.getElementById('aiPopoverDropdown');
-            if (btn && dd) {
-                positionAiDropdown(btn, dd);
-            } else {
-                closeAiDropdown();
-            }
-        }
-    });
-
-    if (el.tableWrapper) {
-        el.tableWrapper.addEventListener('scroll', () => {
-            if (state.activeAiDropdownSno) {
-                const btn = document.querySelector(`.btn-row-ai[data-sno="${state.activeAiDropdownSno}"]`);
-                const dd = document.getElementById('aiPopoverDropdown');
-                if (btn && dd) {
-                    const rect = btn.getBoundingClientRect();
-                    if (rect.bottom < 100 || rect.top > window.innerHeight - 30) {
-                        closeAiDropdown();
-                    } else {
-                        positionAiDropdown(btn, dd);
-                    }
-                }
-            }
-        });
-    }
 
     // Delegated input listener for real-time attribute editing
     el.tableBody.addEventListener('input', (e) => {
