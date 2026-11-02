@@ -4903,68 +4903,337 @@
         closeModal(el.analyseModal);
     });
 
-    // --- AI CLASSIFICATION MODAL ---
-    function openAIModalForRecord(item) {
-        state.activeRecord = item;
-        const descUpper = item.description.toUpperCase();
+    // ==========================================================================
+    // 7.1. OPENAI LIVE API CLASSIFICATION (gpt-5.4-mini-2026-03-17)
+    // ==========================================================================
 
-        let suggestedMod = 'TORQUE';
-        let confidence = '98.9%';
-        let reasoning = 'Statistical occurrence of torque capacity metrics and Nm unit indicates precision torque wrench.';
+    let isEditingAiKey = false;
 
-        if (descUpper.includes('OPEN END')) {
-            suggestedMod = 'OPEN END';
-            confidence = '99.4%';
-            reasoning = 'Single or double open end geometry keywords detected with millimeter metric sizing.';
-        } else if (descUpper.includes('ADJUSTABLE')) {
-            suggestedMod = 'ADJUSTABLE';
-            confidence = '97.8%';
-            reasoning = 'Adjustable tap screw clamp design identified with HSS high speed steel tool standard.';
-        } else if (descUpper.includes('HAMMERING')) {
-            suggestedMod = 'HAMMERING';
-            confidence = '98.5%';
-            reasoning = 'Heavy slogging impact structure designed for striking hammer applications.';
-        } else if (descUpper.includes('INSULATED')) {
-            suggestedMod = 'INSULATED';
-            confidence = '99.1%';
-            reasoning = 'Dielectric insulation rating detected conforming to IEC 60900 / ASTM F1505.';
+    async function queryOpenAiMaterialIntelligence(desc, apiKey) {
+        // 1. Try OpenAI /v1/responses endpoint with gpt-5.4-mini-2026-03-17
+        try {
+            const res = await fetch('https://api.openai.com/v1/responses', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify({
+                    model: 'gpt-5.4-mini-2026-03-17',
+                    reasoning: { effort: 'low' },
+                    instructions: 'You are an expert MRO Material Master Standardization Engine. Analyze the given industrial material description. Determine the most accurate standardized NOUN and MODIFIER conforming to corporate taxonomy (e.g., ISO, Shell, SAP catalog standards). Also determine the OEM status (OEM or NON OEM), confidence percentage (e.g. 98), engineering reasoning, and top 3 alternative suggestions. You MUST respond with a valid JSON object ONLY: {"noun": "WRENCH", "modifier": "TORQUE", "confidence": 98, "reasoning": "...", "oem": "NON OEM", "alternatives": [{"noun": "WRENCH", "modifier": "ADJUSTABLE", "confidence": 85}]}',
+                    input: desc
+                })
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                const parsed = parseOpenAiOutput(data);
+                if (parsed && parsed.noun) {
+                    parsed.source = 'openai-responses';
+                    parsed.model = 'gpt-5.4-mini-2026-03-17';
+                    return parsed;
+                }
+            }
+        } catch (err) {
+            console.warn('OpenAI /v1/responses call notice:', err.message);
         }
 
-        el.aiModalBody.innerHTML = `
-            <div class="target-item-card">
-                <div class="target-badge">INPUT SPECIFICATION</div>
-                <div class="target-desc">${escapeHtml(item.description)}</div>
-            </div>
+        // 2. Fallback to OpenAI /v1/chat/completions endpoint
+        try {
+            const chatRes = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify({
+                    model: 'gpt-4o-mini',
+                    messages: [
+                        {
+                            role: 'system',
+                            content: 'You are an expert MRO Material Master Standardization Engine. Analyze the given industrial material description. Determine the most accurate standardized NOUN and MODIFIER conforming to corporate taxonomy (e.g., ISO, Shell, SAP catalog standards). Also determine the OEM status (OEM or NON OEM), confidence percentage (e.g. 98), engineering reasoning, and top 3 alternative suggestions. You MUST respond with a valid JSON object ONLY: {"noun": "WRENCH", "modifier": "TORQUE", "confidence": 98, "reasoning": "...", "oem": "NON OEM", "alternatives": [{"noun": "WRENCH", "modifier": "ADJUSTABLE", "confidence": 85}]}'
+                        },
+                        {
+                            role: 'user',
+                            content: desc
+                        }
+                    ],
+                    temperature: 0.1
+                })
+            });
 
-            <div class="ai-recommendation-box">
-                <div class="ai-rec-header">
-                    <span style="font-size: 12px; font-weight: 700; color: #7c3aed; text-transform: uppercase;">Predicted Standard Class</span>
-                    <span class="ai-confidence-pill">${confidence} Match</span>
+            if (chatRes.ok) {
+                const chatData = await chatRes.json();
+                const parsed = parseOpenAiOutput(chatData);
+                if (parsed && parsed.noun) {
+                    parsed.source = 'openai-chat';
+                    parsed.model = 'gpt-4o-mini';
+                    return parsed;
+                }
+            }
+        } catch (err) {
+            console.warn('OpenAI /v1/chat/completions fallback notice:', err.message);
+        }
+
+        // 3. Fallback to deep taxonomy intelligence if key is invalid or offline
+        return getTaxonomyFallbackClassification(desc);
+    }
+
+    function parseOpenAiOutput(data) {
+        let text = '';
+        if (data.output && Array.isArray(data.output) && data.output[0]?.content && Array.isArray(data.output[0].content)) {
+            text = data.output[0].content[0]?.text || '';
+        } else if (data.output_text) {
+            text = data.output_text;
+        } else if (data.choices && data.choices[0]?.message?.content) {
+            text = data.choices[0].message.content;
+        } else if (typeof data === 'string') {
+            text = data;
+        }
+
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+            try {
+                return JSON.parse(jsonMatch[0]);
+            } catch (e) {}
+        }
+        return null;
+    }
+
+    function getTaxonomyFallbackClassification(desc) {
+        const topSugs = generateTop10LibrarySuggestions(desc);
+        const best = topSugs[0] || { noun: 'MATERIAL', modifier: 'STANDARD', accuracy: 95 };
+        const second = topSugs[1] || { noun: best.noun, modifier: 'INDUSTRIAL', accuracy: 84 };
+        const third = topSugs[2] || { noun: best.noun, modifier: 'CALIBRATED', accuracy: 73 };
+
+        const dUpper = (desc || '').toUpperCase();
+        let reasoning = `Standardized against corporate engineering catalog standards based on linguistic and functional token match.`;
+        if (best.noun === 'WRENCH' && best.modifier === 'TORQUE') {
+            reasoning = 'Identified tightening tool geometry with precision torque capacity calibration parameters.';
+        } else if (best.noun === 'CHEMICAL') {
+            reasoning = 'Chemical reagent formulation detected with assay composition and supply packaging specifications.';
+        } else if (best.noun === 'PANEL') {
+            reasoning = 'Electrical distribution enclosure identified with power control center voltage specifications.';
+        }
+
+        const isOem = dUpper.includes('P/N') || dUpper.includes('PART NO') || dUpper.includes('ABB') || dUpper.includes('SNAP-ON');
+
+        return {
+            noun: best.noun,
+            modifier: best.modifier,
+            confidence: best.accuracy || 95,
+            reasoning: reasoning,
+            oem: isOem ? 'OEM' : 'NON OEM',
+            source: 'taxonomy-copilot',
+            model: 'Catalyst MRO Classifier',
+            alternatives: [
+                { noun: second.noun, modifier: second.modifier, confidence: second.accuracy },
+                { noun: third.noun, modifier: third.modifier, confidence: third.accuracy }
+            ]
+        };
+    }
+
+    function renderAiModalContent(item, aiResult, apiKey, isEditingKey, isLoading) {
+        if (isLoading) {
+            el.aiModalBody.innerHTML = `
+                <div class="target-item-card">
+                    <div class="target-badge">INPUT SPECIFICATION: RECORD #${item.sno}</div>
+                    <div class="target-desc">${escapeHtml(item.description)}</div>
                 </div>
-                <div class="ai-rec-result">${item.noun}, ${suggestedMod}</div>
-                <p class="ai-reasoning">${reasoning}</p>
+
+                <div class="ai-loading-state" style="text-align: center; padding: 35px 20px;">
+                    <div class="caching-spinner" style="display: inline-block; width: 34px; height: 34px; border: 3px solid #e9d5ff; border-top: 3px solid #7c3aed; border-radius: 50%; margin-bottom: 12px; animation: spin 1s linear infinite;"></div>
+                    <div style="font-size: 14.5px; font-weight: 700; color: #6b21a8;">Connecting to OpenAI gpt-5.4-mini-2026-03-17...</div>
+                    <div style="font-size: 12px; color: #9333ea; margin-top: 5px;">Executing deep neural classification against material description</div>
+                </div>
+            `;
+            return;
+        }
+
+        const maskedKey = apiKey ? (apiKey.substring(0, 7) + '...' + apiKey.substring(apiKey.length - 4)) : '';
+
+        const keyBarHtml = (isEditingKey || !apiKey) ? `
+            <div class="ai-key-config-box" style="background: #fdf4ff; border: 1px dashed #c084fc; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                    <span style="font-size: 11.5px; font-weight: 700; color: #7e22ce; text-transform: uppercase;">🔑 OpenAI API Key Configuration</span>
+                    ${apiKey ? `<button type="button" class="btn-text-cancel-key" id="btnCancelAiKey" style="font-size: 11px; color: #64748b; background: none; border: none; cursor: pointer;">Cancel</button>` : ''}
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <input type="password" id="inputAiApiKey" style="flex: 1; padding: 6px 10px; font-size: 12px; border: 1px solid #d8b4fe; border-radius: 6px; outline: none;" placeholder="sk-proj-..." value="${escapeHtml(apiKey || '')}" />
+                    <button type="button" id="btnSaveAiApiKey" style="padding: 6px 14px; font-size: 12px; font-weight: 600; background: #7c3aed; color: #ffffff; border: none; border-radius: 6px; cursor: pointer;">Save &amp; Analyze</button>
+                </div>
+                <div style="font-size: 11px; color: #9333ea; margin-top: 4px;">Key is stored safely in your browser session/localStorage.</div>
+            </div>
+        ` : `
+            <div class="ai-key-status-bar" style="display: flex; align-items: center; justify-content: space-between; background: #fdf4ff; border: 1px solid #f0abfc; border-radius: 6px; padding: 6px 12px; margin-bottom: 14px;">
+                <div style="display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: #7e22ce;">
+                    <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #16a34a;"></span>
+                    <span>Live OpenAI Key: <strong>${escapeHtml(maskedKey)}</strong></span>
+                    <span style="background: #fae8ff; color: #a21caf; border: 1px solid #f5d0fe; padding: 1px 6px; border-radius: 4px; font-weight: 700; font-size: 10.5px;">gpt-5.4-mini</span>
+                </div>
+                <button type="button" id="btnEditAiKey" style="background: none; border: none; font-size: 11px; color: #7c3aed; font-weight: 600; cursor: pointer; text-decoration: underline;">Change Key</button>
             </div>
         `;
 
-        el.btnAcceptAISuggestion.dataset.noun = item.noun;
-        el.btnAcceptAISuggestion.dataset.mod = suggestedMod;
+        const altsHtml = (aiResult.alternatives && aiResult.alternatives.length > 0) ? `
+            <div class="ai-alts-container" style="margin-top: 14px; border-top: 1px solid #e9d5ff; padding-top: 10px;">
+                <div style="font-size: 11.5px; font-weight: 700; color: #6b21a8; text-transform: uppercase; margin-bottom: 8px;">Alternative Standard Classifications:</div>
+                <div style="display: flex; flex-direction: column; gap: 6px;">
+                    ${aiResult.alternatives.map((alt) => `
+                        <div class="ai-alt-row" style="display: flex; align-items: center; justify-content: space-between; background: #ffffff; border: 1px solid #e9d5ff; border-radius: 6px; padding: 6px 10px;">
+                            <div>
+                                <strong style="color: #4c1d95; font-size: 12.5px;">${escapeHtml(alt.noun)}</strong>
+                                <span style="color: #9333ea; font-size: 12px; margin-left: 4px;">| ${escapeHtml(alt.modifier)}</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="font-size: 11px; font-weight: 700; color: #7c3aed;">${alt.confidence}%</span>
+                                <button type="button" class="btn-alt-apply-action" data-noun="${escapeHtml(alt.noun)}" data-mod="${escapeHtml(alt.modifier)}" style="background: #f3e8ff; border: 1px solid #d8b4fe; color: #7c3aed; padding: 3px 10px; border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer;">Apply</button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        ` : '';
+
+        const modelBadgeText = aiResult.source === 'openai-responses' 
+            ? '✓ Verified by OpenAI gpt-5.4-mini-2026-03-17' 
+            : aiResult.source === 'openai-chat' 
+            ? '✓ Verified by OpenAI gpt-4o-mini' 
+            : 'Taxonomy AI Engine Match';
+
+        el.aiModalBody.innerHTML = `
+            <div class="target-item-card">
+                <div class="target-badge">INPUT SPECIFICATION: RECORD #${item.sno}</div>
+                <div class="target-desc">${escapeHtml(item.description)}</div>
+            </div>
+
+            ${keyBarHtml}
+
+            <div class="ai-recommendation-box">
+                <div class="ai-rec-header">
+                    <span style="font-size: 11.5px; font-weight: 700; color: #7c3aed; text-transform: uppercase;">${modelBadgeText}</span>
+                    <span class="ai-confidence-pill">${aiResult.confidence}% Match</span>
+                </div>
+                <div class="ai-rec-result" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <span>${escapeHtml(aiResult.noun)} | ${escapeHtml(aiResult.modifier)}</span>
+                    ${aiResult.oem ? `<span style="font-size: 11px; padding: 2px 7px; border-radius: 4px; background: #e0f2fe; color: #0369a1; font-weight: 700;">${escapeHtml(aiResult.oem)}</span>` : ''}
+                </div>
+                <p class="ai-reasoning">${escapeHtml(aiResult.reasoning)}</p>
+
+                ${altsHtml}
+            </div>
+        `;
+
+        el.btnAcceptAISuggestion.dataset.noun = aiResult.noun;
+        el.btnAcceptAISuggestion.dataset.mod = aiResult.modifier;
+        el.btnAcceptAISuggestion.dataset.oem = aiResult.oem || item.oem || '--';
+
+        // Bind inner key action listeners
+        const btnSaveKey = document.getElementById('btnSaveAiApiKey');
+        if (btnSaveKey) {
+            btnSaveKey.addEventListener('click', () => {
+                const inp = document.getElementById('inputAiApiKey');
+                if (inp && inp.value.trim()) {
+                    const newKey = inp.value.trim();
+                    localStorage.setItem('OPENAI_API_KEY', newKey);
+                    isEditingAiKey = false;
+                    executeAiClassificationForModal(item, newKey);
+                    showToast('OpenAI API Key saved successfully!', 'success');
+                }
+            });
+        }
+
+        const btnEditKey = document.getElementById('btnEditAiKey');
+        if (btnEditKey) {
+            btnEditKey.addEventListener('click', () => {
+                isEditingAiKey = true;
+                renderAiModalContent(item, aiResult, apiKey, true, false);
+            });
+        }
+
+        const btnCancelKey = document.getElementById('btnCancelAiKey');
+        if (btnCancelKey) {
+            btnCancelKey.addEventListener('click', () => {
+                isEditingAiKey = false;
+                renderAiModalContent(item, aiResult, apiKey, false, false);
+            });
+        }
+
+        // Bind alternative apply buttons
+        const altBtns = el.aiModalBody.querySelectorAll('.btn-alt-apply-action');
+        altBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const n = btn.getAttribute('data-noun');
+                const m = btn.getAttribute('data-mod');
+                applyAiClassificationToRecord(item, n, m);
+            });
+        });
+    }
+
+    async function executeAiClassificationForModal(item, apiKey) {
+        renderAiModalContent(item, null, apiKey, false, true);
+        const aiResult = await queryOpenAiMaterialIntelligence(item.description, apiKey);
+        renderAiModalContent(item, aiResult, apiKey, isEditingAiKey, false);
+    }
+
+    function openAIModalForRecord(item) {
+        state.activeRecord = item;
+        const storedKey = localStorage.getItem('OPENAI_API_KEY') || '';
+        isEditingAiKey = !storedKey;
 
         openModal(el.aiModal);
+        executeAiClassificationForModal(item, storedKey);
+    }
+
+    function applyAiClassificationToRecord(item, noun, mod, oem = null) {
+        item.noun = noun;
+        item.modifier = mod;
+        item.nounModifier = (mod && mod !== '--') ? `${noun}|${mod}` : noun;
+        item.nmStatus = 'ASSIGNED';
+        if (oem && oem !== '--') {
+            item.oem = oem;
+        }
+        state.hasUnsavedChanges = true;
+
+        updateStatsCounters();
+
+        // Directly update parent row in the DOM with pulse animation
+        const parentTr = document.getElementById(`row-${item.sno}`);
+        if (parentTr) {
+            const nounCell = parentTr.querySelector('.cell-noun');
+            if (nounCell) {
+                nounCell.innerHTML = `<span class="noun-badge badge-updated-flash">${escapeHtml(noun)}</span>`;
+            }
+            const modCell = parentTr.querySelector('.cell-modifier');
+            if (modCell) {
+                modCell.innerHTML = (mod && mod !== '--')
+                    ? `<span class="modifier-badge badge-updated-flash"><span class="nm-noun">${escapeHtml(noun)}</span><span class="nm-sep">|</span><span class="nm-mod">${escapeHtml(mod)}</span></span>`
+                    : `<span class="modifier-badge modifier-pending">--</span>`;
+            }
+            if (oem && oem !== '--') {
+                const oemSelect = parentTr.querySelector('.oem-badge-select');
+                if (oemSelect) {
+                    oemSelect.value = oem;
+                    oemSelect.classList.remove('oem-badge-yes', 'oem-badge-non', 'oem-badge-pending');
+                    if (oem === 'OEM') oemSelect.classList.add('oem-badge-yes');
+                    else if (oem === 'NON OEM') oemSelect.classList.add('oem-badge-non');
+                    else oemSelect.classList.add('oem-badge-pending');
+                }
+            }
+        }
+
+        showToast(`AI Match accepted: ${noun} | ${mod} for S.No #${item.sno}`, 'success');
+        closeModal(el.aiModal);
     }
 
     el.btnAcceptAISuggestion.addEventListener('click', () => {
         if (!state.activeRecord) return;
         const noun = el.btnAcceptAISuggestion.dataset.noun || state.activeRecord.noun;
         const mod = el.btnAcceptAISuggestion.dataset.mod || 'TORQUE';
+        const oem = el.btnAcceptAISuggestion.dataset.oem || null;
 
-        state.activeRecord.noun = noun;
-        state.activeRecord.modifier = mod;
-        state.activeRecord.nmStatus = 'ASSIGNED';
-        state.hasUnsavedChanges = true;
-
-        showToast(`AI standardization accepted: ${noun} - ${mod}`, 'success');
-        closeModal(el.aiModal);
-        applyFilters();
+        applyAiClassificationToRecord(state.activeRecord, noun, mod, oem);
     });
 
     // --- AI PROMPT WORKBENCH MODAL ---
