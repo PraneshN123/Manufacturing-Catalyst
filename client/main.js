@@ -5130,7 +5130,7 @@
             ? '✓ Verified by OpenAI gpt-5.4-mini-2026-03-17' 
             : aiResult.source === 'openai-chat' 
             ? '✓ Verified by OpenAI gpt-4o-mini' 
-            : 'Taxonomy AI Engine Match';
+            : 'AI Classification Match';
 
         el.aiModalBody.innerHTML = `
             <div class="target-item-card">
@@ -5281,9 +5281,6 @@
         tr.id = `expanded-openai-row-${item.sno}`;
         tr.className = 'expanded-ai-row expanded-openai-row';
 
-        const storedKey = localStorage.getItem('OPENAI_API_KEY') || '';
-        const maskedKey = storedKey ? (storedKey.substring(0, 7) + '...' + storedKey.substring(storedKey.length - 4)) : '';
-
         const { oemLabel, nounVal, modVal } = getItemNounAndModDisplay(item);
 
         tr.innerHTML = `
@@ -5301,34 +5298,13 @@
                                     <span class="prompt-mod-text">Modifier:</span>
                                     <span class="prompt-mod-val" id="openaiModVal-${item.sno}">|${escapeHtml(modVal)}</span>
                                 </div>
-                                <div class="openai-header-right">
-                                    <span class="openai-model-tag" id="openaiModelTag-${item.sno}">gpt-5.4-mini-2026-03-17</span>
-                                    <div class="openai-key-status" id="openaiKeyStatus-${item.sno}">
-                                        ${storedKey ? `
-                                            <span class="key-status-dot"></span>
-                                            <span>Live Key: <strong>${escapeHtml(maskedKey)}</strong></span>
-                                            <button type="button" class="btn-text-change-key" data-sno="${item.sno}">Change</button>
-                                        ` : `
-                                            <button type="button" class="btn-text-change-key" data-sno="${item.sno}">🔑 Enter OpenAI Key</button>
-                                        `}
-                                    </div>
-                                    <button type="button" class="btn-openai-refresh" data-sno="${item.sno}" title="Re-query OpenAI gpt-5.4-mini">
-                                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                            <polyline points="23 4 23 10 17 10"></polyline>
-                                            <polyline points="1 20 1 14 7 14"></polyline>
-                                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                                <div class="prompt-header-right">
+                                    <span class="ai-source-badge openai-source-badge">
+                                        <svg class="ai-sparkle-icon" viewBox="0 0 24 24" width="14" height="14" fill="#7c3aed">
+                                            <path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z"/>
                                         </svg>
-                                        <span>Re-run AI</span>
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div class="openai-key-edit-bar" id="openaiKeyEditBar-${item.sno}" style="display: none;">
-                                <div class="openai-key-edit-inner">
-                                    <span style="font-size: 11px; font-weight: 700; color: #7c3aed;">OpenAI API Key:</span>
-                                    <input type="password" class="input-openai-key" id="inputOpenAiKey-${item.sno}" placeholder="sk-proj-..." value="${escapeHtml(storedKey)}" />
-                                    <button type="button" class="btn-save-openai-key" data-sno="${item.sno}">Save &amp; Query</button>
-                                    <button type="button" class="btn-cancel-openai-key" data-sno="${item.sno}">Cancel</button>
+                                        AI Suggested Nouns &amp; Modifiers
+                                    </span>
                                 </div>
                             </div>
 
@@ -5531,13 +5507,6 @@
                 </div>
             ` : ''}
         `;
-
-        const modelTag = document.getElementById(`openaiModelTag-${item.sno}`);
-        if (modelTag) {
-            if (aiResult.source === 'openai-responses') modelTag.textContent = 'gpt-5.4-mini-2026-03-17';
-            else if (aiResult.source === 'openai-chat') modelTag.textContent = 'gpt-4o-mini';
-            else modelTag.textContent = 'Taxonomy AI Engine';
-        }
     }
 
     function applyOpenAiSuggestion(sno, noun, modifier, oem = null) {
@@ -6974,66 +6943,7 @@
             return;
         }
 
-        // 4. OpenAI Drawer: Toggle Key Change Box
-        const changeKeyBtn = e.target.closest('.btn-text-change-key');
-        if (changeKeyBtn) {
-            const sno = parseInt(changeKeyBtn.getAttribute('data-sno'), 10);
-            const editBar = document.getElementById(`openaiKeyEditBar-${sno}`);
-            if (editBar) {
-                editBar.style.display = (editBar.style.display === 'none' || !editBar.style.display) ? 'block' : 'none';
-            }
-            return;
-        }
-
-        // 5. OpenAI Drawer: Save API Key
-        const saveKeyBtn = e.target.closest('.btn-save-openai-key');
-        if (saveKeyBtn) {
-            const sno = parseInt(saveKeyBtn.getAttribute('data-sno'), 10);
-            const input = document.getElementById(`inputOpenAiKey-${sno}`);
-            const newKey = input ? input.value.trim() : '';
-            if (newKey) {
-                localStorage.setItem('OPENAI_API_KEY', newKey);
-                delete state.aiCache[sno];
-                const editBar = document.getElementById(`openaiKeyEditBar-${sno}`);
-                if (editBar) editBar.style.display = 'none';
-
-                const keyStatus = document.getElementById(`openaiKeyStatus-${sno}`);
-                const maskedKey = newKey.substring(0, 7) + '...' + newKey.substring(newKey.length - 4);
-                if (keyStatus) {
-                    keyStatus.innerHTML = `
-                        <span class="key-status-dot"></span>
-                        <span>Live Key: <strong>${escapeHtml(maskedKey)}</strong></span>
-                        <button type="button" class="btn-text-change-key" data-sno="${sno}">Change</button>
-                    `;
-                }
-
-                showToast('OpenAI API Key saved successfully!', 'success');
-                const item = state.allRecords.find(r => r.sno === sno);
-                if (item) {
-                    renderOpenAiDrawerContent(item, null, true);
-                    queryOpenAiMaterialIntelligence(item.description, newKey).then(aiResult => {
-                        if (state.expandedAiSno === sno) {
-                            state.aiCache[sno] = aiResult;
-                            renderOpenAiDrawerContent(item, aiResult, false);
-                        }
-                    });
-                }
-            } else {
-                showToast('Please enter a valid OpenAI API key', 'error');
-            }
-            return;
-        }
-
-        // 6. OpenAI Drawer: Cancel Key Edit
-        const cancelKeyBtn = e.target.closest('.btn-cancel-openai-key');
-        if (cancelKeyBtn) {
-            const sno = parseInt(cancelKeyBtn.getAttribute('data-sno'), 10);
-            const editBar = document.getElementById(`openaiKeyEditBar-${sno}`);
-            if (editBar) editBar.style.display = 'none';
-            return;
-        }
-
-        // 7. Prompt Drawer: Template tab switch
+        // 4. Prompt Drawer: Template tab switch
         const tplBtn = e.target.closest('[data-action="switch-template"]');
         if (tplBtn) {
             const sno = parseInt(tplBtn.getAttribute('data-sno'), 10);

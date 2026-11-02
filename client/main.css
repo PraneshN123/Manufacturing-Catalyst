@@ -1393,6 +1393,12 @@ th.col-actions, td.cell-actions { width: 260px; min-width: 260px; padding: 10px 
     letter-spacing: -0.1px;
 }
 
+.openai-source-badge {
+    color: #6d28d9;
+    background: #faf5ff;
+    border: 1px solid #ddd6fe;
+}
+
 .openai-header {
     display: flex;
     align-items: center;
