@@ -5261,6 +5261,21 @@
     // 7.1. OPENAI MATERIAL INTELLIGENCE ACCORDION DRAWER & TABLE (GPT-5.4-MINI)
     // ==========================================================================
 
+    function getItemNounAndModDisplay(item, fallbackSuggestions = null) {
+        const oemLabel = item.oem || 'NON OEM';
+        let nounVal = (item.noun && item.noun !== '--' && item.noun !== 'PENDING') ? item.noun : '';
+        let modVal = (item.modifier && item.modifier !== '--' && item.modifier !== 'PENDING') ? item.modifier : '';
+
+        if (!nounVal || !modVal) {
+            const topSug = (fallbackSuggestions && fallbackSuggestions.length > 0)
+                ? fallbackSuggestions[0]
+                : generateTop10LibrarySuggestions(item.description, item)[0];
+            if (!nounVal) nounVal = (topSug && topSug.noun) ? topSug.noun : 'WRENCH';
+            if (!modVal) modVal = (topSug && topSug.modifier) ? topSug.modifier : 'TORQUE';
+        }
+        return { oemLabel, nounVal, modVal };
+    }
+
     function buildExpandedOpenAiRow(item) {
         const tr = document.createElement('tr');
         tr.id = `expanded-openai-row-${item.sno}`;
@@ -5269,20 +5284,25 @@
         const storedKey = localStorage.getItem('OPENAI_API_KEY') || '';
         const maskedKey = storedKey ? (storedKey.substring(0, 7) + '...' + storedKey.substring(storedKey.length - 4)) : '';
 
+        const { oemLabel, nounVal, modVal } = getItemNounAndModDisplay(item);
+
         tr.innerHTML = `
             <td colspan="7" class="expanded-ai-cell">
                 <div class="ai-drawer-animator">
                     <div class="ai-drawer-content">
                         <div class="ai-suggestions-card openai-suggestions-card">
-                            <div class="ai-suggestions-header openai-header">
-                                <div class="openai-header-left">
-                                    <svg class="ai-sparkle-icon" viewBox="0 0 24 24" width="18" height="18" fill="#7c3aed">
-                                        <path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z"/>
-                                    </svg>
-                                    <span class="ai-suggestions-title">OpenAI gpt-5.4-mini Suggested Nouns &amp; Modifiers</span>
-                                    <span class="openai-model-tag" id="openaiModelTag-${item.sno}">gpt-5.4-mini-2026-03-17</span>
+                            <div class="prompt-card-header openai-header">
+                                <div class="prompt-header-left">
+                                    <span class="prompt-dot-bullet">●</span>
+                                    <span class="prompt-oem-badge-clickable" data-action="toggle-prompt-oem-quick" data-sno="${item.sno}" title="Click to toggle OEM / NON OEM">${escapeHtml(oemLabel)}</span>
+                                    <span class="prompt-noun-text">Noun:</span>
+                                    <span class="prompt-noun-val" id="openaiNounVal-${item.sno}">${escapeHtml(nounVal)}</span>
+                                    <span class="prompt-pipe-sep">|</span>
+                                    <span class="prompt-mod-text">Modifier:</span>
+                                    <span class="prompt-mod-val" id="openaiModVal-${item.sno}">|${escapeHtml(modVal)}</span>
                                 </div>
                                 <div class="openai-header-right">
+                                    <span class="openai-model-tag" id="openaiModelTag-${item.sno}">gpt-5.4-mini-2026-03-17</span>
                                     <div class="openai-key-status" id="openaiKeyStatus-${item.sno}">
                                         ${storedKey ? `
                                             <span class="key-status-dot"></span>
@@ -5313,10 +5333,28 @@
                             </div>
 
                             <div class="openai-body-container" id="openaiBodyContainer-${item.sno}">
-                                <div class="ai-loading-container" style="padding: 35px 20px; text-align: center;">
-                                    <div class="caching-spinner" style="display: inline-block; width: 34px; height: 34px; border: 3px solid #e9d5ff; border-top: 3px solid #7c3aed; border-radius: 50%; margin-bottom: 12px; animation: spin 0.8s linear infinite;"></div>
-                                    <div style="font-size: 14px; font-weight: 700; color: #4c1d95;">Connecting to OpenAI gpt-5.4-mini-2026-03-17...</div>
-                                    <div style="font-size: 12px; color: #7c3aed; margin-top: 4px;">Executing deep neural taxonomy classification against material description</div>
+                                <div class="ai-suggestions-table-wrapper">
+                                    <table class="ai-suggestions-table openai-suggestions-table">
+                                        <thead>
+                                            <tr>
+                                                <th class="col-sug-num">#</th>
+                                                <th class="col-sug-noun">SUGGESTED NOUN</th>
+                                                <th class="col-sug-mod">SUGGESTED MODIFIER</th>
+                                                <th class="col-sug-oem">OEM STATUS</th>
+                                                <th class="col-sug-acc">ACCURACY</th>
+                                                <th class="col-sug-act">ACTION</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td colspan="6" style="padding: 35px 20px; text-align: center;">
+                                                    <div class="caching-spinner" style="display: inline-block; width: 32px; height: 32px; border: 3px solid #e9d5ff; border-top: 3px solid #7c3aed; border-radius: 50%; margin-bottom: 10px; animation: spin 0.8s linear infinite;"></div>
+                                                    <div style="font-size: 13.5px; font-weight: 700; color: #4c1d95;">Querying OpenAI gpt-5.4-mini-2026-03-17...</div>
+                                                    <div style="font-size: 11.5px; color: #7c3aed; margin-top: 3px;">Executing deep neural taxonomy classification against material description</div>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
                         </div>
@@ -5334,10 +5372,28 @@
 
         if (isLoading) {
             container.innerHTML = `
-                <div class="ai-loading-container" style="padding: 35px 20px; text-align: center;">
-                    <div class="caching-spinner" style="display: inline-block; width: 34px; height: 34px; border: 3px solid #e9d5ff; border-top: 3px solid #7c3aed; border-radius: 50%; margin-bottom: 12px; animation: spin 0.8s linear infinite;"></div>
-                    <div style="font-size: 14px; font-weight: 700; color: #4c1d95;">Connecting to OpenAI gpt-5.4-mini-2026-03-17...</div>
-                    <div style="font-size: 12px; color: #7c3aed; margin-top: 4px;">Executing deep neural taxonomy classification against material description</div>
+                <div class="ai-suggestions-table-wrapper">
+                    <table class="ai-suggestions-table openai-suggestions-table">
+                        <thead>
+                            <tr>
+                                <th class="col-sug-num">#</th>
+                                <th class="col-sug-noun">SUGGESTED NOUN</th>
+                                <th class="col-sug-mod">SUGGESTED MODIFIER</th>
+                                <th class="col-sug-oem">OEM STATUS</th>
+                                <th class="col-sug-acc">ACCURACY</th>
+                                <th class="col-sug-act">ACTION</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="6" style="padding: 35px 20px; text-align: center;">
+                                    <div class="caching-spinner" style="display: inline-block; width: 32px; height: 32px; border: 3px solid #e9d5ff; border-top: 3px solid #7c3aed; border-radius: 50%; margin-bottom: 10px; animation: spin 0.8s linear infinite;"></div>
+                                    <div style="font-size: 13.5px; font-weight: 700; color: #4c1d95;">Connecting to OpenAI gpt-5.4-mini-2026-03-17...</div>
+                                    <div style="font-size: 11.5px; color: #7c3aed; margin-top: 3px;">Executing deep neural taxonomy classification against material description</div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             `;
             return;
@@ -5522,6 +5578,16 @@
                     else oemSelect.classList.add('oem-badge-pending');
                 }
             }
+        }
+
+        // Update drawer header values
+        const openaiNounEl = document.getElementById(`openaiNounVal-${sno}`);
+        if (openaiNounEl) openaiNounEl.textContent = noun;
+        const openaiModEl = document.getElementById(`openaiModVal-${sno}`);
+        if (openaiModEl) openaiModEl.textContent = `|${modifier}`;
+        if (oem && oem !== '--') {
+            const oemBadge = document.querySelector(`#expanded-openai-row-${sno} .prompt-oem-badge-clickable`);
+            if (oemBadge) oemBadge.textContent = oem;
         }
 
         // Highlight applied suggestion inside the OpenAI drawer
@@ -5955,6 +6021,7 @@
 
     function buildExpandedAiRow(item) {
         const suggestions = generateTop10LibrarySuggestions(item.description, item);
+        const { oemLabel, nounVal, modVal } = getItemNounAndModDisplay(item, suggestions);
         const tr = document.createElement('tr');
         tr.id = `expanded-row-${item.sno}`;
         tr.className = 'expanded-ai-row';
@@ -5976,6 +6043,11 @@
                     <td class="col-sug-num">${num}</td>
                     <td class="col-sug-noun"><strong>${escapeHtml(sug.noun)}</strong></td>
                     <td class="col-sug-mod">${escapeHtml(sug.modifier)}</td>
+                    <td class="col-sug-oem">
+                        <span class="oem-status-pill ${item.oem === 'OEM' ? 'oem-pill-yes' : 'oem-pill-non'}">
+                            ${escapeHtml(item.oem || 'NON OEM')}
+                        </span>
+                    </td>
                     <td class="col-sug-acc">
                         <div class="sug-acc-wrapper">
                             <div class="sug-acc-track">
@@ -6019,19 +6091,33 @@
                 <div class="ai-drawer-animator">
                     <div class="ai-drawer-content">
                         <div class="ai-suggestions-card">
-                            <div class="ai-suggestions-header">
-                                <svg class="ai-robot-icon" viewBox="0 0 24 24" width="18" height="18" fill="#7c3aed">
-                                    <path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.38-1 1.72V7h2a3 3 0 0 1 3 3v1h1a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-1v1a3 3 0 0 1-3 3h-2v1.28c.6.34 1 .98 1 1.72a2 2 0 1 1-4 0c0-.74.4-1.38 1-1.72V20h-2a3 3 0 0 1-3-3v-1H4a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h1v-1a3 3 0 0 1 3-3h2V5.72c-.6-.34-1-.98-1-1.72a2 2 0 0 1 2-2zm-3 8a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm6 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm-6 5h6v1.5H9V15z"/>
-                                </svg>
-                                <span class="ai-suggestions-title">AI Suggested Nouns &amp; Modifiers</span>
+                            <div class="prompt-card-header ai-card-header">
+                                <div class="prompt-header-left">
+                                    <span class="prompt-dot-bullet">●</span>
+                                    <span class="prompt-oem-badge-clickable" data-action="toggle-prompt-oem-quick" data-sno="${item.sno}" title="Click to toggle OEM / NON OEM">${escapeHtml(oemLabel)}</span>
+                                    <span class="prompt-noun-text">Noun:</span>
+                                    <span class="prompt-noun-val" id="assignNounVal-${item.sno}">${escapeHtml(nounVal)}</span>
+                                    <span class="prompt-pipe-sep">|</span>
+                                    <span class="prompt-mod-text">Modifier:</span>
+                                    <span class="prompt-mod-val" id="assignModVal-${item.sno}">|${escapeHtml(modVal)}</span>
+                                </div>
+                                <div class="prompt-header-right">
+                                    <span class="ai-source-badge">
+                                        <svg class="ai-robot-icon" viewBox="0 0 24 24" width="14" height="14" fill="#6366f1">
+                                            <path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.38-1 1.72V7h2a3 3 0 0 1 3 3v1h1a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-1v1a3 3 0 0 1-3 3h-2v1.28c.6.34 1 .98 1 1.72a2 2 0 1 1-4 0c0-.74.4-1.38 1-1.72V20h-2a3 3 0 0 1-3-3v-1H4a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h1v-1a3 3 0 0 1 3-3h2V5.72c-.6-.34-1-.98-1-1.72a2 2 0 0 1 2-2zm-3 8a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm6 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm-6 5h6v1.5H9V15z"/>
+                                        </svg>
+                                        AI Suggested Nouns &amp; Modifiers
+                                    </span>
+                                </div>
                             </div>
                             <div class="ai-suggestions-table-wrapper">
                                 <table class="ai-suggestions-table">
                                     <thead>
                                         <tr>
                                             <th class="col-sug-num">#</th>
-                                            <th class="col-sug-noun">NOUN</th>
-                                            <th class="col-sug-mod">MODIFIER</th>
+                                            <th class="col-sug-noun">SUGGESTED NOUN</th>
+                                            <th class="col-sug-mod">SUGGESTED MODIFIER</th>
+                                            <th class="col-sug-oem">OEM STATUS</th>
                                             <th class="col-sug-acc">ACCURACY</th>
                                             <th class="col-sug-act">ACTION</th>
                                         </tr>
@@ -6211,6 +6297,12 @@
                     : `<span class="modifier-badge modifier-pending">--</span>`;
             }
         }
+
+        // Update drawer header values
+        const assignNounEl = document.getElementById(`assignNounVal-${sno}`);
+        if (assignNounEl) assignNounEl.textContent = noun;
+        const assignModEl = document.getElementById(`assignModVal-${sno}`);
+        if (assignModEl) assignModEl.textContent = `|${modifier}`;
 
         // Highlight applied suggestion inside the drawer
         const drawerTr = document.getElementById(`expanded-row-${sno}`);
@@ -6446,9 +6538,7 @@
     }
 
     function buildExpandedPromptRow(item) {
-        const oemLabel = item.oem || 'NON OEM';
-        const nounVal = (item.noun && item.noun !== '--') ? item.noun : 'WRENCH';
-        const modVal = (item.modifier && item.modifier !== '--') ? item.modifier : 'TORQUE';
+        const { oemLabel, nounVal, modVal } = getItemNounAndModDisplay(item);
         const activeTpl = item.activeTemplate || 1;
 
         const templates = getTemplatesForRecord(item);
@@ -6809,6 +6899,24 @@
                 else if (nextOem === 'NON OEM') oemSelect.classList.add('oem-badge-non');
                 else oemSelect.classList.add('oem-badge-pending');
             }
+        }
+
+        // Update OEM badges in any open drawer
+        const openOemBadges = document.querySelectorAll(`[id^="expanded-"][id$="-${sno}"] .prompt-oem-badge-clickable`);
+        openOemBadges.forEach(b => {
+            b.textContent = nextOem;
+        });
+
+        // Update Assign sub-table OEM pills if open
+        const assignRow = document.getElementById(`expanded-row-${sno}`);
+        if (assignRow) {
+            const pills = assignRow.querySelectorAll('.oem-status-pill');
+            pills.forEach(p => {
+                p.textContent = nextOem;
+                p.classList.remove('oem-pill-yes', 'oem-pill-non');
+                if (nextOem === 'OEM') p.classList.add('oem-pill-yes');
+                else p.classList.add('oem-pill-non');
+            });
         }
 
         updateStatsCounters();
