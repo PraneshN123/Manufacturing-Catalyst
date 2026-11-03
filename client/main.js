@@ -7253,7 +7253,10 @@ function expandInlineAssign(sno, isDirectRender = false) {
     }
 
     function buildExpandedPromptRow(item) {
-        const { oemLabel, nounVal, modVal } = getItemNounAndModDisplay(item);
+        const { oemLabel, nounVal } = getItemNounAndModDisplay(item);
+        const modVal = (item.Noun_Modifier && item.Noun_Modifier !== '--')
+            ? item.Noun_Modifier
+            : ((item.modifier && item.modifier !== '--') ? item.modifier : '--');
         const activeTpl = item.activeTemplate || 1;
 
         const templates = getTemplatesForRecord(item);
@@ -7262,8 +7265,40 @@ function expandInlineAssign(sno, isDirectRender = false) {
             item.currentAttributesTemplate = activeTpl;
         }
 
-        if (!item.attributes) {
-            item.attributes = {};
+        if (!item.apiExtractedAttributes) item.apiExtractedAttributes = {};
+        if (!item.validatedAttributes) item.validatedAttributes = {};
+        if (!item.manualAttributes) item.manualAttributes = {};
+        if (!item.attributes) item.attributes = {};
+
+        // Auto-extract description on initial open if not yet populated
+        const descVal = (item.description || item.Discription || '').trim();
+        if (descVal && Object.keys(item.apiExtractedAttributes).length === 0) {
+            const normN = (item.noun && item.noun !== '--' && item.noun !== 'PENDING') ? item.noun : 'MATERIAL';
+            const normM = (item.modifier && item.modifier !== '--' && item.modifier !== 'PENDING') ? item.modifier : 'STANDARD';
+            const oemSt = item.oem || 'NON OEM';
+            const extracted = extractAttributesFromDesc(descVal, normN, normM, oemSt);
+
+            // Row 5: SHORT description (e.g. Insulated Torque Wrench)
+            const shortRaw = descVal.split(',')[0].trim();
+            item.apiExtractedAttributes['EXISTING ITEM DESCRIPTION ( SHORT)'] = shortRaw;
+            item.validatedAttributes['EXISTING ITEM DESCRIPTION ( SHORT)'] = shortRaw.toUpperCase();
+            item.manualAttributes['EXISTING ITEM DESCRIPTION ( SHORT)'] = shortRaw.toUpperCase();
+
+            // Row 6: LONG description (e.g. Insulated Torque Wrench,3/8" Dia,10"L)
+            item.apiExtractedAttributes['EXISTING ITEM DESCRIPTION ( LONG)'] = descVal;
+            item.validatedAttributes['EXISTING ITEM DESCRIPTION ( LONG)'] = descVal.toUpperCase();
+            item.manualAttributes['EXISTING ITEM DESCRIPTION ( LONG)'] = descVal.toUpperCase();
+
+            // Merge all other extracted attributes
+            for (const [k, v] of Object.entries(extracted)) {
+                if (k !== 'EXISTING ITEM DESCRIPTION ( SHORT)' && k !== 'EXISTING ITEM DESCRIPTION ( LONG)') {
+                    item.apiExtractedAttributes[k] = v;
+                    item.validatedAttributes[k] = String(v).toUpperCase();
+                    if (item.manualAttributes[k] === undefined) {
+                        item.manualAttributes[k] = String(v).toUpperCase();
+                    }
+                }
+            }
         }
 
         // For NON OEM records, pre-populate standard master fields if not explicitly edited
@@ -7297,9 +7332,12 @@ function expandInlineAssign(sno, isDirectRender = false) {
         }
 
         const rowsHtml = item.currentAttributesList.map((attr, idx) => {
-            const val = item.attributes[attr] || '';
             const isCustom = typeof attr === 'object' && attr.isCustom;
             const attrDisplayName = isCustom ? attr.name : attr;
+
+            const apiVal = getAttrValueCaseInsensitive(item.apiExtractedAttributes, attrDisplayName) || '';
+            const valVal = getAttrValueCaseInsensitive(item.validatedAttributes, attrDisplayName) || '';
+            const manualVal = getAttrValueCaseInsensitive(item.manualAttributes, attrDisplayName) || '';
 
             return `
                 <tr data-attr-idx="${idx}" data-attr-name="${escapeHtml(attrDisplayName)}">
@@ -7316,13 +7354,19 @@ function expandInlineAssign(sno, isDirectRender = false) {
                             <input type="text" class="prompt-attr-cell-input" data-sno="${item.sno}" data-idx="${idx}" value="${escapeHtml(attrDisplayName)}" placeholder="ATTRIBUTE NAME" />
                         ` : escapeHtml(attrDisplayName)}
                     </td>
-                    <td>
+                    <td class="cell-val-api">
+                        <span class="prompt-val-text-api">${escapeHtml(apiVal || '--')}</span>
+                    </td>
+                    <td class="cell-val-validated">
+                        <span class="prompt-val-text-validated">${escapeHtml(valVal || '--')}</span>
+                    </td>
+                    <td class="cell-val-manual">
                         <input type="text" 
-                               class="prompt-val-input" 
+                               class="prompt-manual-input prompt-val-input" 
                                data-sno="${item.sno}" 
                                data-attr="${escapeHtml(attrDisplayName)}" 
-                               value="${escapeHtml(val)}" 
-                               placeholder="--" />
+                               value="${escapeHtml(manualVal)}" 
+                               placeholder="Enter value..." />
                     </td>
                 </tr>
             `;
@@ -7348,12 +7392,19 @@ function expandInlineAssign(sno, isDirectRender = false) {
                                     <span class="prompt-mod-val">${escapeHtml(modVal)}</span>
                                 </div>
                                 <div class="prompt-header-right">
-                                    <button type="button" class="btn-template-tab active-template" data-action="switch-template" data-sno="${item.sno}" data-tpl="1">Template 1</button>
-                                    <button type="button" class="btn-prompt-analyse btn-prompt-validate" data-action="validate-prompt" data-sno="${item.sno}" title="Validate &amp; Assign Specification Attributes">
-                                        <svg class="validate-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                            <polyline points="20 6 9 17 4 12"></polyline>
+                                    <button type="button" class="btn-template-tab ${activeTpl === 1 ? 'active-template' : ''}" data-action="switch-template" data-sno="${item.sno}" data-tpl="1">Template 1</button>
+                                    <button type="button" class="btn-template-tab ${activeTpl === 2 ? 'active-template' : ''}" data-action="switch-template" data-sno="${item.sno}" data-tpl="2">Template 2</button>
+                                    <button type="button" class="btn-prompt-analyse btn-prompt-reanalyse" data-action="reanalyse-prompt" data-sno="${item.sno}" title="Re-Analyse Specification Attributes">
+                                        <svg class="sparkle-icon" viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
+                                            <path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z"/>
                                         </svg>
-                                        <span>Validate</span>
+                                        <span>Re-Analyse</span>
+                                    </button>
+                                    <button type="button" class="btn-prompt-submit" data-action="submit-prompt" data-sno="${item.sno}" title="Submit &amp; Save Attributes">
+                                        <svg class="submit-icon" viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
+                                            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                                        </svg>
+                                        <span>Submit</span>
                                     </button>
                                 </div>
                             </div>
@@ -7364,7 +7415,9 @@ function expandInlineAssign(sno, isDirectRender = false) {
                                         <tr>
                                             <th class="col-th-num">#</th>
                                             <th class="col-th-attr">ATTRIBUTE</th>
-                                            <th class="col-th-val">API EXTRACTED VALUE</th>
+                                            <th class="col-th-api">API EXTRACTED VALUE</th>
+                                            <th class="col-th-validated">VALIDATED VALUE</th>
+                                            <th class="col-th-manual">MANUAL VALUE</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -7548,93 +7601,124 @@ function expandInlineAssign(sno, isDirectRender = false) {
         showToast(`Switched to Template ${tplNum}`, 'info');
     }
 
-    function handleValidatePromptAttributes(sno) {
+    function handleReAnalysePromptAttributes(sno) {
         const item = state.allRecords.find(r => r.sno === sno);
         if (!item) return;
 
         const desc = (item.description || item.Discription || '').trim();
         const normNoun = (item.noun && item.noun !== '--' && item.noun !== 'PENDING') 
             ? item.noun 
-            : (classifyWithLibraryTaxonomy(desc).noun || 'MATERIAL');
+            : (classifyWithLibraryTaxonomy(desc).noun || 'WRENCH');
         const normMod = (item.modifier && item.modifier !== '--' && item.modifier !== 'PENDING') 
             ? item.modifier 
-            : (classifyWithLibraryTaxonomy(desc).modifier || 'STANDARD');
+            : (classifyWithLibraryTaxonomy(desc).modifier || 'TORQUE');
         const oemStatus = item.oem || 'NON OEM';
 
-        // Deep extraction of all attributes from description
         const extracted = extractAttributesFromDesc(desc, normNoun, normMod, oemStatus);
+
+        if (!item.apiExtractedAttributes) item.apiExtractedAttributes = {};
+        if (!item.validatedAttributes) item.validatedAttributes = {};
+        if (!item.manualAttributes) item.manualAttributes = {};
         if (!item.attributes) item.attributes = {};
 
-        // Strictly assign description and standard fields
-        const siteVal = item.site || item.plant || 'TPPC';
-        const itemCodeVal = item.materialNumber || item.Material_Number || '';
-        const uomVal = item.uom || item.UOM || 'NO';
-        const catVal = item.priority || item.Priority_Item || 'Standard';
-        const nmStr = normNoun + '|' + normMod;
-        const sapShort = normNoun + ',' + normMod + (extracted.ATTRIBUTE_STANDARDIZED_VALUE_1 ? (',' + extracted.ATTRIBUTE_STANDARDIZED_VALUE_1) : '');
-        const sapLong = normNoun + ', ' + normMod + ', ' + desc;
+        // Row 5: SHORT description
+        const shortRaw = desc.split(',')[0].trim();
+        item.apiExtractedAttributes['EXISTING ITEM DESCRIPTION ( SHORT)'] = shortRaw;
+        item.validatedAttributes['EXISTING ITEM DESCRIPTION ( SHORT)'] = shortRaw.toUpperCase();
+        item.manualAttributes['EXISTING ITEM DESCRIPTION ( SHORT)'] = shortRaw.toUpperCase();
 
-        item.attributes['Sl No'] = String(item.sno || '');
-        item.attributes['Site'] = siteVal;
-        item.attributes['Item Code'] = itemCodeVal;
-        item.attributes['Site|ItemCode'] = siteVal + '|' + itemCodeVal;
-        item.attributes['EXISTING ITEM DESCRIPTION ( SHORT)'] = desc;
-        item.attributes['EXISTING ITEM DESCRIPTION ( LONG)'] = desc;
-        item.attributes['UOM'] = uomVal;
-        item.attributes['ITEM CATEGORY'] = catVal;
-        item.attributes['SHORT DESCRIPTION - SAP'] = sapShort;
-        item.attributes['Len'] = String(sapShort.length);
-        item.attributes['LONG DESCRIPTION - SAP'] = sapLong;
-        item.attributes['NOUN'] = normNoun;
-        item.attributes['MODIFIER'] = normMod;
-        item.attributes['NOUN|MODIFIER'] = nmStr;
-        item.attributes['FREE FORM TEXT'] = desc;
-        item.attributes['UNUSED TEXT'] = extracted['UNUSED TEXT'] || 'None';
-        item.attributes['TAG NUMBER'] = extracted['TAG NUMBER'] || 'N/A';
+        // Row 6: LONG description
+        item.apiExtractedAttributes['EXISTING ITEM DESCRIPTION ( LONG)'] = desc;
+        item.validatedAttributes['EXISTING ITEM DESCRIPTION ( LONG)'] = desc.toUpperCase();
+        item.manualAttributes['EXISTING ITEM DESCRIPTION ( LONG)'] = desc.toUpperCase();
 
-        // Merge extracted technical properties, UNSPSC, manufacturer, parts, etc.
-        Object.assign(item.attributes, extracted);
+        // Populate API extracted and validated values
+        for (const [k, v] of Object.entries(extracted)) {
+            if (k !== 'EXISTING ITEM DESCRIPTION ( SHORT)' && k !== 'EXISTING ITEM DESCRIPTION ( LONG)') {
+                item.apiExtractedAttributes[k] = v;
+                item.validatedAttributes[k] = String(v).toUpperCase();
+                if (item.manualAttributes[k] === undefined || item.manualAttributes[k] === '') {
+                    item.manualAttributes[k] = String(v).toUpperCase();
+                }
+                item.attributes[k] = item.manualAttributes[k];
+            }
+        }
 
-        // Update drawer DOM: assign every matching input live with glow animation
+        // Update DOM cells with flash animation
         const drawerTr = document.getElementById(`expanded-prompt-row-${sno}`);
         let count = 0;
         if (drawerTr) {
-            // Update drawer header noun & modifier
-            const nounEl = drawerTr.querySelector('.prompt-noun-val');
-            if (nounEl) nounEl.textContent = normNoun;
-            const modEl = drawerTr.querySelector('.prompt-mod-val');
-            if (modEl) modEl.textContent = normMod;
+            const rows = drawerTr.querySelectorAll('tr[data-attr-name]');
+            rows.forEach(tr => {
+                const attrName = tr.getAttribute('data-attr-name');
+                const apiVal = getAttrValueCaseInsensitive(item.apiExtractedAttributes, attrName);
+                const valVal = getAttrValueCaseInsensitive(item.validatedAttributes, attrName);
+                const manVal = getAttrValueCaseInsensitive(item.manualAttributes, attrName);
 
-            const inputs = drawerTr.querySelectorAll('.prompt-val-input');
-            inputs.forEach(input => {
-                const attrName = input.getAttribute('data-attr');
-                const matchVal = getAttrValueCaseInsensitive(item.attributes, attrName);
-                if (matchVal !== undefined && matchVal !== null && matchVal !== '') {
-                    input.value = matchVal;
-                    input.classList.add('extracted-flash');
-                    setTimeout(() => input.classList.remove('extracted-flash'), 1200);
+                const apiEl = tr.querySelector('.prompt-val-text-api');
+                if (apiEl && apiVal) {
+                    apiEl.textContent = apiVal;
+                    apiEl.classList.add('extracted-flash');
+                    setTimeout(() => apiEl.classList.remove('extracted-flash'), 1200);
+                }
+
+                const valEl = tr.querySelector('.prompt-val-text-validated');
+                if (valEl && valVal) {
+                    valEl.textContent = valVal;
+                    valEl.classList.add('extracted-flash');
+                    setTimeout(() => valEl.classList.remove('extracted-flash'), 1200);
+                }
+
+                const manInput = tr.querySelector('.prompt-manual-input');
+                if (manInput && (manVal || valVal)) {
+                    manInput.value = manVal || valVal;
+                    manInput.classList.add('extracted-flash');
+                    setTimeout(() => manInput.classList.remove('extracted-flash'), 1200);
                     count++;
                 }
             });
         }
 
-        // Update parent row in main table
-        const parentTr = document.getElementById(`row-${sno}`);
-        if (parentTr) {
-            const nounCell = parentTr.querySelector('.cell-noun');
-            if (nounCell && normNoun !== '--') nounCell.textContent = normNoun;
-            const modCell = parentTr.querySelector('.cell-modifier');
-            if (modCell && normMod !== '--') modCell.textContent = normMod;
-            const nmCell = parentTr.querySelector('.cell-noun-modifier');
-            if (nmCell && normNoun !== '--' && normMod !== '--') nmCell.textContent = normNoun + ' | ' + normMod;
-        }
-
         state.hasUnsavedChanges = true;
         updateStatsCounters();
-        showToast(`✓ Validated & assigned description attributes for #${sno} (${count} attributes assigned)`, 'success');
+        showToast(`✨ Re-Analysed #${sno}: Updated ${count} attribute values`, 'success');
     }
 
-    const handleAnalysePromptAttributes = handleValidatePromptAttributes;
+    const handleValidatePromptAttributes = handleReAnalysePromptAttributes;
+    const handleAnalysePromptAttributes = handleReAnalysePromptAttributes;
+
+    function handleSubmitPromptAttributes(sno) {
+        const item = state.allRecords.find(r => r.sno === sno);
+        if (!item) return;
+
+        const drawerTr = document.getElementById(`expanded-prompt-row-${sno}`);
+        if (drawerTr) {
+            const inputs = drawerTr.querySelectorAll('.prompt-manual-input');
+            inputs.forEach(input => {
+                const attrName = input.getAttribute('data-attr');
+                const val = input.value.trim();
+                if (val) {
+                    if (!item.manualAttributes) item.manualAttributes = {};
+                    if (!item.attributes) item.attributes = {};
+                    item.manualAttributes[attrName] = val;
+                    item.attributes[attrName] = val;
+                }
+            });
+        }
+
+        item.isSubmitted = true;
+        item.nmStatus = 'VERIFIED';
+        state.hasUnsavedChanges = true;
+
+        const parentTr = document.getElementById(`row-${sno}`);
+        if (parentTr) {
+            const statusCell = parentTr.querySelector('.cell-status');
+            if (statusCell) statusCell.innerHTML = '<span class="status-badge status-verified">VERIFIED</span>';
+        }
+
+        updateStatsCounters();
+        showToast(`✓ Specification attributes for #${sno} submitted successfully!`, 'success');
+    }
 
     function handleDeletePromptAttribute(sno, idx) {
         const item = state.allRecords.find(r => r.sno === sno);
@@ -7790,11 +7874,19 @@ function expandInlineAssign(sno, isDirectRender = false) {
             return;
         }
 
-        // 8. Prompt Drawer: Validate button (strictly changed from analyse)
-        const validatePromptBtn = e.target.closest('[data-action="validate-prompt"], [data-action="analyse-prompt"]');
-        if (validatePromptBtn) {
-            const sno = parseInt(validatePromptBtn.getAttribute('data-sno'), 10);
-            handleValidatePromptAttributes(sno);
+        // 8. Prompt Drawer: Re-Analyse button
+        const reanalysePromptBtn = e.target.closest('[data-action="reanalyse-prompt"], [data-action="validate-prompt"], [data-action="analyse-prompt"]');
+        if (reanalysePromptBtn) {
+            const sno = parseInt(reanalysePromptBtn.getAttribute('data-sno'), 10);
+            handleReAnalysePromptAttributes(sno);
+            return;
+        }
+
+        // 8.1 Prompt Drawer: Submit button
+        const submitPromptBtn = e.target.closest('[data-action="submit-prompt"]');
+        if (submitPromptBtn) {
+            const sno = parseInt(submitPromptBtn.getAttribute('data-sno'), 10);
+            handleSubmitPromptAttributes(sno);
             return;
         }
 
@@ -7851,15 +7943,17 @@ function expandInlineAssign(sno, isDirectRender = false) {
 
     // Delegated input listener for real-time attribute editing
     el.tableBody.addEventListener('input', (e) => {
-        // Editable API extracted value
-        if (e.target.classList.contains('prompt-val-input')) {
+        // Manual attribute value input
+        if (e.target.classList.contains('prompt-manual-input') || e.target.classList.contains('prompt-val-input')) {
             const sno = parseInt(e.target.getAttribute('data-sno'), 10);
             const attrName = e.target.getAttribute('data-attr');
             const val = e.target.value.trim();
 
             const item = state.allRecords.find(r => r.sno === sno);
             if (item) {
+                if (!item.manualAttributes) item.manualAttributes = {};
                 if (!item.attributes) item.attributes = {};
+                item.manualAttributes[attrName] = val;
                 item.attributes[attrName] = val;
                 state.hasUnsavedChanges = true;
             }

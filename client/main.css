@@ -4155,3 +4155,137 @@ th.col-actions, td.cell-actions { width: 260px; min-width: 260px; padding: 10px 
 
 
 
+
+/* ==========================================================================
+   5-COLUMN SPECIFICATION TABLE (MATCHING media_1793700968611_839c0352.png)
+   ========================================================================== */
+
+.prompt-spec-table th.col-th-api {
+    color: #2563eb !important;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+}
+
+.prompt-spec-table th.col-th-validated {
+    color: #7c3aed !important;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+}
+
+.prompt-spec-table th.col-th-manual {
+    color: #d97706 !important;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+}
+
+.cell-val-api {
+    color: #2563eb;
+    font-weight: 500;
+    font-size: 12px;
+    padding: 8px 12px;
+    white-space: nowrap;
+}
+
+.prompt-val-text-api {
+    color: #2563eb;
+    font-weight: 500;
+    font-size: 12px;
+    display: inline-block;
+}
+
+.cell-val-validated {
+    color: #7c3aed;
+    font-weight: 600;
+    font-size: 12px;
+    padding: 8px 12px;
+    white-space: nowrap;
+}
+
+.prompt-val-text-validated {
+    color: #7c3aed;
+    font-weight: 600;
+    font-size: 12px;
+    display: inline-block;
+}
+
+.cell-val-manual {
+    padding: 6px 12px;
+    min-width: 220px;
+}
+
+.prompt-manual-input {
+    width: 100%;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-size: 12px;
+    color: #1e293b;
+    background: #ffffff;
+    transition: all 0.15s ease;
+}
+
+.prompt-manual-input:focus {
+    outline: none;
+    border-color: #d97706;
+    box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.15);
+}
+
+.prompt-manual-input::placeholder {
+    color: #94a3b8;
+    font-style: normal;
+}
+
+/* Re-Analyse & Submit action buttons */
+.btn-prompt-reanalyse {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    border: 1px solid #bfdbfe;
+    background: #ffffff;
+    color: #2563eb;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-prompt-reanalyse:hover {
+    background: #eff6ff;
+    border-color: #93c5fd;
+    transform: translateY(-1px);
+}
+
+.btn-prompt-submit {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    border: 1px solid #86efac;
+    background: #ffffff;
+    color: #16a34a;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-prompt-submit:hover {
+    background: #f0fdf4;
+    border-color: #4ade80;
+    transform: translateY(-1px);
+}
+
+.submit-icon {
+    flex-shrink: 0;
+    width: 13px;
+    height: 13px;
+}
