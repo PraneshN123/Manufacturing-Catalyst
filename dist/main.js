@@ -4940,16 +4940,135 @@
     let isEditingAiKey = false;
 
     // ==========================================================================
-    // 7.1. SEMANTIC AI MATERIAL INTELLIGENCE (ANALYZES DESCRIPTION & OEM STATUS)
-    // Strictly analyzes against record Description and OEM status without querying database
+    // 7.1. EXPERT MANUFACTURING MATERIAL MASTER CLASSIFICATION AI
+    // Based on Engineering Semantics and Material-Master Taxonomy
     // ==========================================================================
 
+    const EXPERT_SYSTEM_PROMPT = `# ROLE
+
+You are an Expert Manufacturing Material Master Classification AI.
+
+Your primary responsibility is to analyze raw, unstructured, semi-structured, abbreviated, duplicated, noisy, or highly technical manufacturing/material descriptions and generate accurate Noun–Modifier classifications.
+
+You specialize in:
+- MRO Materials
+- Manufacturing
+- Engineering
+- Oil & Gas
+- Petrochemical
+- Mechanical
+- Piping
+- Tubing
+- Instrumentation
+- Electrical
+- Automation
+- Rotating Equipment
+- Static Equipment
+- Valves
+- Pumps
+- Fittings
+- Fasteners
+- Bearings
+- Tools
+- Welding Materials
+- Electrical Components
+- Process Equipment
+- Wireline
+- Completion Equipment
+- Drilling Equipment
+- Industrial Consumables
+- Spare Parts
+- Safety Equipment
+- Laboratory Equipment
+- General Industrial Materials
+
+Your classification must be based on ENGINEERING SEMANTICS and MATERIAL-MASTER TAXONOMY.
+Do NOT behave like a normal language parser.
+Do NOT simply extract words from the description.
+Do NOT assume that the first word is always the Noun.
+Do NOT assume that the second word is always the Modifier.
+You must understand what physical product the description represents and determine the most meaningful product classification.
+
+# PRIMARY OBJECTIVE
+Given ANY user-provided material description:
+1. Understand the complete description.
+2. Identify the actual physical item/product.
+3. Determine the primary product family.
+4. Determine meaningful subtype/classification modifiers.
+5. Separate identity information from technical attributes.
+6. Generate multiple defensible Noun–Modifier candidates.
+7. Validate every candidate.
+8. Rank candidates from strongest to weakest.
+9. Return only technically defensible candidates.
+10. Never invent a classification merely to increase the number of suggestions.
+
+# IMPORTANT CONCEPT
+NOUN = The primary physical product/material class.
+MODIFIER = A meaningful subtype, functional class, recognized product category, construction category, application category, or industry-recognized classification that distinguishes the product.
+Do not confuse technical attributes with modifiers.
+
+# ATTRIBUTE VS MODIFIER
+Attributes (Diameter, OD, ID, Wall Thickness, Length, Width, Pressure, Temperature, Material, Alloy, Grade, Schedule, Rating, ASTM/ASME/API/ISO/DIN, Heat Treatment, Finish, Brand, Part Number, Model Number) are NOT modifiers, but may be used as evidence.
+
+# ACCESSORIES
+A component or accessory mentioned in the description (c/w, with, including, etc.) is not automatically the Modifier.
+
+# CANDIDATE GENERATION
+Generate candidates from semantic levels:
+- LEVEL 1: DIRECT PRODUCT TERMINOLOGY
+- LEVEL 2: PHYSICAL FORM
+- LEVEL 3: FUNCTION
+- LEVEL 4: APPLICATION
+- LEVEL 5: CONSTRUCTION
+- LEVEL 6: INDUSTRY TERMINOLOGY
+- LEVEL 7: SYNONYMS
+- LEVEL 8: TAXONOMY ALTERNATIVES
+
+# CONFIDENCE
+Use ONLY: VERY_HIGH, HIGH, MEDIUM, LOW
+
+# OUTPUT FORMAT
+Return STRICT JSON ONLY:
+{
+  "suggestions": [
+    {
+      "rank": 1,
+      "noun": "JAR",
+      "modifier": "SPRING",
+      "confidence": "VERY_HIGH",
+      "reason": "Directly reflects the recognized product term Spring Jar.",
+      "classification_basis": "DIRECT_DESCRIPTION"
+    }
+  ]
+}`;
+
     function analyzeRecordWithAI(item) {
-        if (!item) return { noun: 'MATERIAL', modifier: 'STANDARD', oem: 'NON OEM', confidence: 95, reasoning: '', suggestions: [] };
+        if (!item) {
+            return {
+                noun: 'MATERIAL',
+                modifier: 'STANDARD',
+                oem: 'NON OEM',
+                confidence: 'VERY_HIGH',
+                accuracy: 98,
+                reasoning: 'Generic material item',
+                suggestions: []
+            };
+        }
+
         const desc = (item.description || item.Discription || item.desc || '').trim();
         const dUpper = desc.toUpperCase();
 
-        // 1. Analyze OEM signals strictly from description text and item properties
+        // 1. Separate accessories to prevent accessory leakage into primary modifier
+        let primarySpec = desc;
+        let accessoryText = '';
+        const accMatch = desc.match(/\b(?:C\/W|WITH|COMPLETE WITH|INCL|INCLUDING|SUPPLIED WITH|ASSEMBLY WITH)\s+([\s\S]+)$/i);
+        if (accMatch) {
+            primarySpec = desc.substring(0, accMatch.index).trim();
+            accessoryText = accMatch[1].trim();
+        }
+        const pUpper = primarySpec.toUpperCase();
+
+        // 2. OEM Evaluation
         const hasPnKeyword = /\b(P\/N|PN|PT\.?\s*NO|PART\s*(?:NO|NUMBER|#)?|MODEL|CAT\s*(?:NO|NUMBER|#)?|REF\s*(?:NO|#)?|DWG\s*NO|DRAWING|S\/N|SERIAL)\b/i.test(desc);
         const hasAlphanumericCode = /\b([A-Z0-9]{3,}-[A-Z0-9.-]{2,}|\bIN\d{5,}\b|\b\d{4,}-\d{2,}\b|[A-Z]{2,}\d{3,})\b/i.test(desc);
         const mfrBrands = [
@@ -4957,7 +5076,9 @@
             'ALLEN-BRADLEY', 'ALLEN BRADLEY', 'ROCKWELL', 'BOSCH', 'FLUKE', 'PARKER', 'SWAGELOK',
             'SULZER', 'KSB', 'FLOWSERVE', 'YOKOGAWA', 'ENDRESS+HAUSER', 'DANFOSS', 'DELL', 'HP',
             'CISCO', 'SARTORIUS', 'ELOMATIC', 'WOODWARD', 'CUMMINS', 'BOROSIL', 'SKALAR', 'METTLER',
-            'ANABOND', 'PEOPLELINK', 'ALAN', 'MICROFINISH', 'AKAY', 'IPC', 'TOYO', 'ACER'
+            'ROSEMOUNT', 'FOXBORO', 'MASONEILAN', 'VELAN', 'TYCO', 'CRANE', 'KEYSTONE', 'DRESSER',
+            'WAUKESHA', 'CATERPILLAR', 'INGERSOLL RAND', 'ANABOND', 'PEOPLELINK', 'ALAN', 'MICROFINISH',
+            'AKAY', 'IPC', 'TOYO', 'ACER'
         ];
         let detectedBrand = null;
         for (const b of mfrBrands) {
@@ -4970,7 +5091,6 @@
 
         const isExplicitOem = (item.oem === 'OEM');
         const isExplicitNonOem = (item.oem === 'NON OEM' || item.oem === 'NON-OEM');
-        
         let detectedOemStatus = 'NON OEM';
         let oemReasonNote = 'Standard industrial commercial commodity specification.';
         if (detectedBrand || hasPnKeyword || hasAlphanumericCode) {
@@ -4979,237 +5099,293 @@
             const pnStr = (hasPnKeyword || hasAlphanumericCode) ? 'Proprietary Part/Model Designation detected' : '';
             oemReasonNote = `OEM indicators identified in specification (${[brandStr, pnStr].filter(Boolean).join(', ')}).`;
         }
+        const effectiveOem = isExplicitOem ? 'OEM' : (isExplicitNonOem ? 'NON OEM' : detectedOemStatus);
 
-        let effectiveOem = isExplicitOem ? 'OEM' : (isExplicitNonOem ? 'NON OEM' : detectedOemStatus);
+        // 3. Candidate pool builder based on Engineering Semantics & Material Master Taxonomy
+        const candidateList = [];
 
-        // 2. Extract Noun and Modifiers strictly from description
-        let primaryNoun = (item.noun && item.noun !== '--' && item.noun !== 'PENDING' && item.noun !== 'NULL' && item.noun !== 'UNDEFINED') ? item.noun.trim().toUpperCase() : '';
-        let primaryMod = (item.modifier && item.modifier !== '--' && item.modifier !== 'PENDING' && item.modifier !== 'NO MODIFIER' && item.modifier !== 'NULL' && item.modifier !== 'UNDEFINED') ? item.modifier.trim().toUpperCase() : '';
+        function addCandidate(noun, modifier, confidence, basis, reason) {
+            if (!noun || !modifier) return;
+            const n = noun.trim().toUpperCase();
+            const m = modifier.trim().toUpperCase();
 
-        // Check for standard comma/colon pattern: NOUN, MODIFIER: ...
-        const colonCommaMatch = desc.match(/^([A-Z\s]{3,25}),\s*([A-Z\s]{3,25}):/i);
-        if (colonCommaMatch) {
-            if (!primaryNoun) primaryNoun = colonCommaMatch[1].trim().toUpperCase();
-            if (!primaryMod) primaryMod = colonCommaMatch[2].trim().toUpperCase();
+            // Attribute filter: ensure modifier is not merely dimension, pressure, alloy, standard or part number
+            if (/^\d+(?:[.-]\d+)?\s*(?:IN|INCH|"|MM|CM|M|FT|FEET|OD|ID|DN\d+|SCH\s*\d+|#\d+|M\d+)?$/i.test(m)) return;
+            if (/^\d+(?:,\d+)?\s*(?:PSI|BAR|KPA|MPA|CLASS\s*\d+|#\s*\d+|PN\d+)$/i.test(m)) return;
+            if (/^(?:SS316L?|SS304L?|ALLOY\s*825|INCONEL\s*\d+|CARBON\s*STEEL|CS|ASTM\s*[A-Z]?\d+|ASME\s*[A-Z\d.]+|API\s*\d+[A-Z]?|ISO\s*\d+)$/i.test(m)) {
+                if (basis !== 'TAXONOMY_ALTERNATIVE') return;
+            }
+            // Accessory filter: do not allow accessory component to become modifier
+            if (accessoryText && new RegExp(`\\b${m}\\b`, 'i').test(accessoryText) && !new RegExp(`\\b${m}\\b`, 'i').test(primarySpec)) {
+                return;
+            }
+
+            // Avoid duplicate candidate pairs
+            if (candidateList.some(c => c.noun === n && c.modifier === m)) return;
+
+            candidateList.push({
+                noun: n,
+                modifier: m,
+                confidence: confidence, // VERY_HIGH, HIGH, MEDIUM, LOW
+                classification_basis: basis,
+                reason: reason,
+                oem: effectiveOem
+            });
         }
 
-        // Pattern matching against known MRO equipment types if noun is still unassigned or generic
-        if (!primaryNoun || primaryNoun === 'MATERIAL') {
-            if (/\b(WRENCH|SPANNER)\b/i.test(dUpper)) primaryNoun = 'WRENCH';
-            else if (/\b(ACTUATOR)\b/i.test(dUpper)) primaryNoun = 'ACTUATOR';
-            else if (/\b(ADAPTER|ADAPTOR)\b/i.test(dUpper)) primaryNoun = 'ADAPTER';
-            else if (/\b(ABSORBER)\b/i.test(dUpper)) primaryNoun = 'ABSORBER';
-            else if (/\b(ABRASIVE|EMERY\s*PAPER|SANDPAPER)\b/i.test(dUpper)) primaryNoun = 'ABRASIVE';
-            else if (/\b(VALVE|VLV)\b/i.test(dUpper)) primaryNoun = 'VALVE';
-            else if (/\b(AIR\s*CONDITIONER|SPLIT\s*AC|CHILLER)\b/i.test(dUpper)) primaryNoun = 'AIR CONDITIONER';
-            else if (/\b(ALARM|ANNUNCIATOR)\b/i.test(dUpper)) primaryNoun = 'ALARM';
-            else if (/\b(ALTERNATOR)\b/i.test(dUpper)) primaryNoun = 'ALTERNATOR';
-            else if (/\b(AMPLIFIER)\b/i.test(dUpper)) primaryNoun = 'AMPLIFIER';
-            else if (/\b(ANALYSER|ANALYZER)\b/i.test(dUpper)) primaryNoun = 'ANALYSER';
-            else if (/\b(APPARATUS|GLASS\s*COIL|TITRATOR)\b/i.test(dUpper)) primaryNoun = 'APPARATUS';
-            else if (/\b(BEARING|BRG)\b/i.test(dUpper)) primaryNoun = 'BEARING';
-            else if (/\b(PUMP|PP)\b/i.test(dUpper)) primaryNoun = 'PUMP';
-            else if (/\b(GASKET|GSKT|O-RING|O\s*RING)\b/i.test(dUpper)) primaryNoun = 'GASKET';
-            else if (/\b(MOTOR|MTR)\b/i.test(dUpper)) primaryNoun = 'MOTOR';
-            else if (/\b(BOLT|STUD|FASTENER|SCREW)\b/i.test(dUpper)) primaryNoun = 'BOLT';
-            else if (/\b(FLANGE)\b/i.test(dUpper)) primaryNoun = 'FLANGE';
-            else if (/\b(TRANSMITTER|SENSOR|TRANSDUCER)\b/i.test(dUpper)) primaryNoun = 'TRANSMITTER';
-            else if (/\b(GAUGE|INDICATOR)\b/i.test(dUpper)) primaryNoun = 'GAUGE';
-            else if (/\b(SWITCH|BREAKER|CONTACTOR|RELAY)\b/i.test(dUpper)) primaryNoun = 'SWITCH';
-            else if (/\b(CABLE|WIRE)\b/i.test(dUpper)) primaryNoun = 'CABLE';
-            else if (/\b(CHEMICAL|REAGENT|ACID|SOLVENT)\b/i.test(dUpper)) primaryNoun = 'CHEMICAL';
-            else if (/\b(PANEL|ENCLOSURE|CABINET)\b/i.test(dUpper)) primaryNoun = 'PANEL';
-            else if (/\b(PIPE|TUBE|TUBING)\b/i.test(dUpper)) primaryNoun = 'PIPE';
-            else if (/\b(FILTER|STRAINER)\b/i.test(dUpper)) primaryNoun = 'FILTER';
-            else if (/\b(AGITATOR)\b/i.test(dUpper)) primaryNoun = 'AGITATOR';
-            else if (/\b(ADHESIVE|SEALANT)\b/i.test(dUpper)) primaryNoun = 'ADHESIVE';
-            else if (/\b(ADJUSTER)\b/i.test(dUpper)) primaryNoun = 'ADJUSTER';
-            else {
-                const words = dUpper.replace(/[^A-Z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length > 2 && !mfrBrands.includes(w));
-                primaryNoun = words[0] || 'EQUIPMENT';
+        // --- DOMAIN RULE 1: Downhole / Wireline / Fishing / Jars ---
+        if (/\b(?:SPRING\s*JAR|JAR)\b/i.test(pUpper)) {
+            if (/\bSPRING\b/i.test(pUpper)) {
+                addCandidate('JAR', 'SPRING', 'VERY_HIGH', 'DIRECT_DESCRIPTION', 'Directly reflects the recognized product term Spring Jar; spring defines the jar mechanism.');
+                addCandidate('JAR', 'MECHANICAL SPRING', 'HIGH', 'CONSTRUCTION', 'Mechanical spring operating principle for downhole jarring action.');
+                addCandidate('JAR', 'UPSTROKE SPRING', 'HIGH', 'FUNCTION', 'Upstroke tripping mechanism classification recognized in wireline tool standards.');
+                addCandidate('JAR', 'WIRELINE SPRING', 'MEDIUM', 'APPLICATION', 'Application-specific material master taxonomy for wireline service.');
+                addCandidate('JAR', 'HYDRAULIC', 'MEDIUM', 'TAXONOMY_ALTERNATIVE', 'Alternative fluid-damped jarring class in downhole fishing taxonomy.');
+                addCandidate('TOOL', 'FISHING JAR', 'LOW', 'TAXONOMY_ALTERNATIVE', 'Higher-level tool parent taxonomy alternative.');
+            } else if (/\bHYDRAULIC\b/i.test(pUpper)) {
+                addCandidate('JAR', 'HYDRAULIC', 'VERY_HIGH', 'DIRECT_DESCRIPTION', 'Directly identifies hydraulic downhole jarring tool.');
+                addCandidate('JAR', 'HYDRAULIC DRILLING', 'HIGH', 'APPLICATION', 'Drilling application subtype for hydraulic jars.');
+                addCandidate('JAR', 'MECHANICAL', 'MEDIUM', 'TAXONOMY_ALTERNATIVE', 'Mechanical operating mechanism alternative.');
             }
         }
 
-        // Determine Modifier options based on extracted noun and description tokens
-        let modOptions = [];
-
-        if (primaryNoun === 'WRENCH') {
-            if (dUpper.includes('TORQUE')) {
-                primaryMod = primaryMod || 'TORQUE';
-                modOptions = ['TORQUE', 'MICROMETER ADJUSTABLE', 'CLICK TYPE', 'RATCHETING DRIVE', 'CALIBRATED INDUSTRIAL'];
-            } else if (dUpper.includes('PIPE')) {
-                primaryMod = primaryMod || 'PIPE';
-                modOptions = ['PIPE', 'HEAVY DUTY STILLSON', 'ALUMINUM HANDLE', 'ADJUSTABLE JAW'];
-            } else if (dUpper.includes('SOCKET')) {
-                primaryMod = primaryMod || 'SOCKET';
-                modOptions = ['SOCKET', 'IMPACT RATED', 'DRIVE RATCHETING', 'DEEP HEX'];
-            } else if (dUpper.includes('HEX') || dUpper.includes('ALLEN')) {
-                primaryMod = primaryMod || 'HEX KEY';
-                modOptions = ['HEX KEY', 'ALLEN L-SHAPE', 'BALL END', 'METRIC / IMPERIAL'];
-            } else {
-                primaryMod = primaryMod || 'ADJUSTABLE';
-                modOptions = ['ADJUSTABLE', 'COMBINATION OPEN/BOX', 'INDUSTRIAL STANDARD', 'CHROME VANADIUM'];
-            }
-        } else if (primaryNoun === 'ACTUATOR') {
-            if (dUpper.includes('PNEU') || dUpper.includes('AIR')) {
-                primaryMod = primaryMod || 'PNEUMATIC';
-                modOptions = ['PNEUMATIC', 'ROTARY QUARTER-TURN', 'DOUBLE ACTING', 'SPRING RETURN', 'DIAPHRAGM'];
-            } else if (dUpper.includes('ELEC') || dUpper.includes('MOTOR')) {
-                primaryMod = primaryMod || 'ELECTRIC';
-                modOptions = ['ELECTRIC', 'MULTI-TURN MODULATING', 'EXPLOSION PROOF 415V', 'SMART BUS-CONTROL'];
-            } else {
-                primaryMod = primaryMod || 'ROTARY';
-                modOptions = ['ROTARY', 'ON/OFF VALVE AUTOMATION', 'PNEUMATIC QUARTER-TURN', 'SPRING RETURN'];
-            }
-        } else if (primaryNoun === 'ADAPTER') {
-            if (dUpper.includes('POWER') || dUpper.includes('90W') || dUpper.includes('65W') || dUpper.includes('VOLT') || dUpper.includes('AC/DC') || dUpper.includes('ELECTRICAL') || dUpper.includes('ADAOTER')) {
-                primaryMod = primaryMod || 'ELECTRICAL';
-                modOptions = ['ELECTRICAL', 'POWER SUPPLY AC/DC', 'REGULATED SWITCHING', 'INDUSTRIAL GRADE'];
-            } else if (dUpper.includes('PIPE') || dUpper.includes('PVC') || dUpper.includes('UPVC') || dUpper.includes('INCH') || dUpper.includes('"')) {
-                primaryMod = primaryMod || 'PIPE';
-                modOptions = ['PIPE', 'REDUCING FITTING', 'SOCKET TO THREADED', 'PRESSURE SCHEDULE 40/80'];
-            } else if (dUpper.includes('COMM') || dUpper.includes('ETHERNET') || dUpper.includes('USB') || dUpper.includes('SC') || dUpper.includes('ST')) {
-                primaryMod = primaryMod || 'COMMUNICATIONS';
-                modOptions = ['COMMUNICATIONS', 'FIBER OPTIC CONVERTER', 'INTERFACE MODULE', 'ETHERNET/IP'];
-            } else {
-                primaryMod = primaryMod || 'STANDARD';
-                modOptions = ['STANDARD', 'MECHANICAL COUPLING', 'COMPONENT CONNECTOR', 'FLANGED'];
-            }
-        } else if (primaryNoun === 'ABSORBER') {
-            primaryMod = primaryMod || 'SHOCK';
-            modOptions = ['SHOCK', 'VIBRATION DAMPER', 'TOP MOUNT SUSPENSION', 'HYDRAULIC ENERGY DISSIPATION'];
-        } else if (primaryNoun === 'ABRASIVE') {
-            primaryMod = primaryMod || 'SHEET';
-            modOptions = ['SHEET', 'WATERPROOF EMERY', 'SILICON CARBIDE FINE', 'FINISHING CLOTH'];
-        } else if (primaryNoun === 'VALVE') {
-            if (dUpper.includes('BALL')) primaryMod = primaryMod || 'BALL';
-            else if (dUpper.includes('GATE')) primaryMod = primaryMod || 'GATE';
-            else if (dUpper.includes('GLOBE')) primaryMod = primaryMod || 'GLOBE';
-            else if (dUpper.includes('CHECK')) primaryMod = primaryMod || 'CHECK';
-            else if (dUpper.includes('BUTTERFLY')) primaryMod = primaryMod || 'BUTTERFLY';
-            else primaryMod = primaryMod || 'CONTROL';
-            modOptions = [primaryMod, 'CLASS 150/300 FLANGED', 'STAINLESS STEEL 316', 'MANUAL LEVER / ACTUATED', 'HIGH PRESSURE SEAT'];
-        } else if (primaryNoun === 'BEARING') {
-            if (dUpper.includes('ROLLER')) primaryMod = primaryMod || 'CYLINDRICAL ROLLER';
-            else if (dUpper.includes('BALL')) primaryMod = primaryMod || 'DEEP GROOVE BALL';
-            else if (dUpper.includes('SPHERICAL')) primaryMod = primaryMod || 'SPHERICAL ROLLER';
-            else primaryMod = primaryMod || 'RADIAL BALL';
-            modOptions = [primaryMod, 'C3 INTERNAL CLEARANCE', 'RUBBER SEALED 2RS', 'PRECISION SPINDLE', 'HEAVY LOAD INDUSTRIAL'];
-        } else if (primaryNoun === 'PUMP') {
-            if (dUpper.includes('CENTRIFUGAL')) primaryMod = primaryMod || 'CENTRIFUGAL';
-            else if (dUpper.includes('SUBMERSIBLE')) primaryMod = primaryMod || 'SUBMERSIBLE';
-            else if (dUpper.includes('DOSING')) primaryMod = primaryMod || 'DOSING';
-            else primaryMod = primaryMod || 'CENTRIFUGAL';
-            modOptions = [primaryMod, 'END SUCTION PROCESS', 'MECHANICAL SEAL EQUIPPED', 'STAINLESS STEEL CF8M', 'HIGH EFFICIENCY'];
-        } else if (primaryNoun === 'GASKET') {
-            if (dUpper.includes('SPIRAL')) primaryMod = primaryMod || 'SPIRAL WOUND';
-            else if (dUpper.includes('RING') || dUpper.includes('RTJ')) primaryMod = primaryMod || 'RING JOINT';
-            else primaryMod = primaryMod || 'NON-ASBESTOS SHEET';
-            modOptions = [primaryMod, 'CLASS 150/300 RAISED FACE', 'GRAPHITE / PTFE FILLED', 'STAINLESS STEEL 316 INNER/OUTER RING', 'O-RING ELASTOMER'];
-        } else if (primaryNoun === 'MOTOR') {
-            if (dUpper.includes('INDUCTION') || dUpper.includes('415V')) primaryMod = primaryMod || 'INDUCTION AC';
-            else if (dUpper.includes('DC') || dUpper.includes('BRUSHLESS')) primaryMod = primaryMod || 'DC BRUSHLESS';
-            else primaryMod = primaryMod || 'SQUIRREL CAGE';
-            modOptions = [primaryMod, '415V 3-PHASE 50HZ', 'EXPLOSION PROOF FLAMEPROOF', 'VARIABLE SPEED DRIVE RATED', 'FOOT / FLANGE MOUNTED'];
-        } else if (primaryNoun === 'BOLT') {
-            if (dUpper.includes('STUD')) primaryMod = primaryMod || 'STUD FULLY THREADED';
-            else if (dUpper.includes('HEX')) primaryMod = primaryMod || 'HEX HEAD';
-            else primaryMod = primaryMod || 'HEAVY HEX';
-            modOptions = [primaryMod, 'ASTM A193 GRADE B7', 'STAINLESS STEEL 316', 'WITH 2 HEAVY HEX NUTS', 'HIGH TENSILE GRADE 8.8'];
-        } else if (primaryNoun === 'CHEMICAL') {
-            primaryMod = primaryMod || 'ANALYTICAL REAGENT';
-            modOptions = [primaryMod, 'ACS GRADE 99%+ PURITY', 'SPECIALTY PROCESS FORMULATION', 'ASSAY GRADE SOLUTION', 'LABORATORY STANDARD'];
-        } else {
-            if (!primaryMod || primaryMod === '--') {
-                const words = dUpper.replace(/[^A-Z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length > 2 && w !== primaryNoun && !mfrBrands.includes(w));
-                primaryMod = words[0] || 'STANDARD';
-            }
-            modOptions = [primaryMod, 'INDUSTRIAL STANDARD', 'HIGH PERFORMANCE', 'EQUIPMENT COMPONENT'];
+        // --- DOMAIN RULE 2: Control Line / Tubing ---
+        else if (/\bCONTROL\s*(?:LINE|TUBING|TUBE)\b/i.test(pUpper) || (/\bCONTROL\b/i.test(pUpper) && /\b(?:LINE|TUBING|TUBE)\b/i.test(pUpper))) {
+            addCandidate('LINE', 'CONTROL', 'VERY_HIGH', 'DIRECT_DESCRIPTION', 'Directly identifies hydraulic or chemical injection control line.');
+            addCandidate('TUBING', 'CONTROL', 'HIGH', 'TAXONOMY_ALTERNATIVE', 'Widely recognized corporate taxonomy alternative under tubing family.');
+            addCandidate('TUBE', 'CONTROL', 'HIGH', 'TAXONOMY_ALTERNATIVE', 'Standardized physical form product taxonomy representation.');
+            addCandidate('TUBING', 'HYDRAULIC', 'MEDIUM', 'APPLICATION', 'Functional service classification for downhole valve actuation.');
+            addCandidate('LINE', 'HYDRAULIC CONTROL', 'MEDIUM', 'INDUSTRY_TERMINOLOGY', 'Recognized oilfield umbilical and control line taxonomy.');
+            addCandidate('TUBE', 'SEAMLESS', 'LOW', 'CONSTRUCTION', 'Construction characteristic taxonomy alternative when seamless.');
         }
 
-        // Build 6 to 8 ranked suggestions
-        const suggestions = [];
+        // --- DOMAIN RULE 3: Valves ---
+        else if (/\b(?:VALVE|VLV)\b/i.test(pUpper)) {
+            if (/\bBALL\b/i.test(pUpper)) {
+                addCandidate('VALVE', 'BALL', 'VERY_HIGH', 'DIRECT_DESCRIPTION', 'Directly identifies quarter-turn spherical closure ball valve.');
+                addCandidate('VALVE', 'PROCESS BALL', 'HIGH', 'TAXONOMY_ALTERNATIVE', 'Industrial process piping taxonomy classification.');
+                if (/\bTRUNNION\b/i.test(pUpper)) addCandidate('VALVE', 'TRUNNION BALL', 'HIGH', 'CONSTRUCTION', 'Trunnion mounted ball construction subtype.');
+                else if (/\bFLOATING\b/i.test(pUpper)) addCandidate('VALVE', 'FLOATING BALL', 'HIGH', 'CONSTRUCTION', 'Floating ball mounting construction subtype.');
+                else addCandidate('VALVE', 'FLOATING BALL', 'MEDIUM', 'CONSTRUCTION', 'Standard industrial floating ball design subtype.');
+                addCandidate('VALVE', 'ISOLATION', 'MEDIUM', 'FUNCTION', 'Functional duty classification in process piping.');
+                addCandidate('VALVE', 'FLANGED BALL', 'MEDIUM', 'CONSTRUCTION', 'End connection construction taxonomy subtype.');
+            } else if (/\bGATE\b/i.test(pUpper)) {
+                addCandidate('VALVE', 'GATE', 'VERY_HIGH', 'DIRECT_DESCRIPTION', 'Directly identifies linear motion gate valve.');
+                addCandidate('VALVE', 'WEDGE GATE', 'HIGH', 'CONSTRUCTION', 'Wedge gate construction subtype.');
+                addCandidate('VALVE', 'ISOLATION', 'MEDIUM', 'FUNCTION', 'Process line isolation duty classification.');
+                addCandidate('VALVE', 'SLAB GATE', 'MEDIUM', 'CONSTRUCTION', 'Through-conduit slab gate taxonomy alternative.');
+            } else if (/\bGLOBE\b/i.test(pUpper)) {
+                addCandidate('VALVE', 'GLOBE', 'VERY_HIGH', 'DIRECT_DESCRIPTION', 'Directly identifies spherical body globe valve.');
+                addCandidate('VALVE', 'THROTTLING GLOBE', 'HIGH', 'FUNCTION', 'Flow regulation and throttling duty classification.');
+                addCandidate('VALVE', 'REGULATING', 'MEDIUM', 'FUNCTION', 'Process regulation duty alternative.');
+            } else if (/\bCHECK\b/i.test(pUpper) || /\bNON\s*RETURN\b/i.test(pUpper)) {
+                addCandidate('VALVE', 'CHECK', 'VERY_HIGH', 'DIRECT_DESCRIPTION', 'Directly identifies automatic backflow prevention check valve.');
+                addCandidate('VALVE', 'NON RETURN', 'HIGH', 'SYNONYM', 'Standard industry synonym classification.');
+                if (/\bSWING\b/i.test(pUpper)) addCandidate('VALVE', 'SWING CHECK', 'HIGH', 'CONSTRUCTION', 'Hinged swing disc check valve construction.');
+                else if (/\bWAFER\b/i.test(pUpper)) addCandidate('VALVE', 'WAFER CHECK', 'HIGH', 'CONSTRUCTION', 'Compact flangeless wafer check design.');
+                else addCandidate('VALVE', 'SWING CHECK', 'MEDIUM', 'CONSTRUCTION', 'Most common standard check valve design subtype.');
+            } else if (/\bCONTROL\b/i.test(pUpper)) {
+                addCandidate('VALVE', 'CONTROL', 'VERY_HIGH', 'DIRECT_DESCRIPTION', 'Directly identifies power-actuated process control valve.');
+                addCandidate('VALVE', 'AUTOMATIC CONTROL', 'HIGH', 'FUNCTION', 'Automated process loop regulation classification.');
+                addCandidate('VALVE', 'PNEUMATIC CONTROL', 'MEDIUM', 'APPLICATION', 'Pneumatic actuator regulation subtype.');
+            } else if (/\bBUTTERFLY\b/i.test(pUpper)) {
+                addCandidate('VALVE', 'BUTTERFLY', 'VERY_HIGH', 'DIRECT_DESCRIPTION', 'Directly identifies quarter-turn rotating disc butterfly valve.');
+                addCandidate('VALVE', 'HIGH PERFORMANCE BUTTERFLY', 'HIGH', 'CONSTRUCTION', 'Offset high-performance butterfly subtype.');
+                addCandidate('VALVE', 'WAFER BUTTERFLY', 'MEDIUM', 'CONSTRUCTION', 'Wafer pattern body design subtype.');
+            } else if (/\bNEEDLE\b/i.test(pUpper)) {
+                addCandidate('VALVE', 'NEEDLE', 'VERY_HIGH', 'DIRECT_DESCRIPTION', 'Directly identifies fine-threaded needle regulating valve.');
+                addCandidate('VALVE', 'INSTRUMENTATION NEEDLE', 'HIGH', 'APPLICATION', 'Instrumentation process tap and isolation classification.');
+            } else if (/\bRELIEF\b/i.test(pUpper) || /\bSAFETY\b/i.test(pUpper) || /\bPSV\b/i.test(pUpper) || /\bPRV\b/i.test(pUpper)) {
+                addCandidate('VALVE', 'PRESSURE RELIEF', 'VERY_HIGH', 'FUNCTION', 'Directly identifies overpressure protection relief valve.');
+                addCandidate('VALVE', 'SAFETY RELIEF', 'HIGH', 'DIRECT_DESCRIPTION', 'Industry recognized safety relief valve taxonomy.');
+            } else if (/\bSOLENOID\b/i.test(pUpper)) {
+                addCandidate('VALVE', 'SOLENOID', 'VERY_HIGH', 'DIRECT_DESCRIPTION', 'Directly identifies electrically actuated solenoid valve.');
+                addCandidate('VALVE', 'ELECTRICALLY ACTUATED', 'HIGH', 'FUNCTION', 'Electromechanical valve actuation classification.');
+            } else {
+                addCandidate('VALVE', 'PROCESS', 'HIGH', 'FUNCTION', 'Standard industrial process fluid valve.');
+                addCandidate('VALVE', 'ISOLATION', 'HIGH', 'FUNCTION', 'Piping fluid isolation classification.');
+            }
+        }
 
-        // 1. Top recommendation (Accuracy 98%)
-        suggestions.push({
-            noun: primaryNoun,
-            modifier: primaryMod,
-            oem: effectiveOem,
-            accuracy: 98,
-            isTop: true
-        });
+        // --- DOMAIN RULE 4: Pressure Switch / Instrumentation Switches ---
+        else if (/\bSWITCH\b/i.test(pUpper) && /\bPRESSURE\b/i.test(pUpper)) {
+            addCandidate('SWITCH', 'PRESSURE', 'VERY_HIGH', 'DIRECT_DESCRIPTION', 'Directly identifies fluid pressure actuation switch.');
+            if (/\bSPDT\b/i.test(pUpper)) {
+                addCandidate('SWITCH', 'SPDT', 'HIGH', 'TAXONOMY_ALTERNATIVE', 'Single-Pole Double-Throw contact configuration taxonomy alternative.');
+            }
+            addCandidate('SWITCH', 'ELECTROMECHANICAL PRESSURE', 'HIGH', 'CONSTRUCTION', 'Electromechanical pressure threshold detection subtype.');
+            addCandidate('SWITCH', 'INSTRUMENTATION PRESSURE', 'MEDIUM', 'APPLICATION', 'Process instrumentation safety and interlock taxonomy.');
+            addCandidate('INSTRUMENT', 'PRESSURE SWITCH', 'LOW', 'TAXONOMY_ALTERNATIVE', 'Broad instrumentation parent family alternative.');
+        }
 
-        // 2. Secondary functional modifier (Accuracy 92%)
-        const altMod1 = modOptions[1] || 'HEAVY DUTY';
-        suggestions.push({
-            noun: primaryNoun,
-            modifier: altMod1,
-            oem: effectiveOem,
-            accuracy: 92,
-            isTop: false
-        });
+        // --- DOMAIN RULE 5: Pipes & Tubing ---
+        else if (/\bPIPE\b/i.test(pUpper)) {
+            if (/\bSEAMLESS\b/i.test(pUpper)) {
+                addCandidate('PIPE', 'SEAMLESS', 'VERY_HIGH', 'CONSTRUCTION', 'Seamless manufacturing construction for pressurized fluid conveyance.');
+                if (/\b(?:SS316|SS304|STAINLESS)\b/i.test(pUpper)) {
+                    addCandidate('PIPE', 'STAINLESS STEEL', 'HIGH', 'TAXONOMY_ALTERNATIVE', 'Stainless steel material family classification recognized in MRO catalogs.');
+                } else if (/\b(?:CS|CARBON\s*STEEL)\b/i.test(pUpper)) {
+                    addCandidate('PIPE', 'CARBON STEEL', 'HIGH', 'TAXONOMY_ALTERNATIVE', 'Carbon steel alloy classification alternative.');
+                }
+                addCandidate('PIPE', 'PROCESS', 'MEDIUM', 'FUNCTION', 'Process piping line conveyance subtype.');
+                addCandidate('TUBING', 'SEAMLESS', 'LOW', 'TAXONOMY_ALTERNATIVE', 'Tubing product family synonym alternative.');
+            } else if (/\b(?:WELDED|ERW|SAW)\b/i.test(pUpper)) {
+                addCandidate('PIPE', 'WELDED', 'VERY_HIGH', 'CONSTRUCTION', 'Welded seam manufacturing construction.');
+                addCandidate('PIPE', 'PROCESS', 'HIGH', 'FUNCTION', 'Process fluid line conveyance classification.');
+            } else {
+                addCandidate('PIPE', 'PROCESS', 'HIGH', 'FUNCTION', 'General process line fluid conveyance.');
+                addCandidate('PIPE', 'SEAMLESS', 'MEDIUM', 'CONSTRUCTION', 'Standard pressure-retaining pipe subtype.');
+            }
+        }
 
-        // 3. Technical specification modifier (Accuracy 86%)
-        const altMod2 = modOptions[2] || 'CALIBRATED';
-        suggestions.push({
-            noun: primaryNoun,
-            modifier: altMod2,
-            oem: effectiveOem,
-            accuracy: 86,
-            isTop: false
-        });
+        // --- DOMAIN RULE 6: Bearings ---
+        else if (/\b(?:BEARING|BRG)\b/i.test(pUpper) || /\b6\d{3}(?:-[A-Z0-9]+)?\b/i.test(pUpper) || /\b(?:SKF|FAG|TIMKEN|NSK|NTN)\b/i.test(pUpper)) {
+            if (/\bBALL\b/i.test(pUpper) || /\b6\d{3}\b/i.test(pUpper)) {
+                addCandidate('BEARING', 'BALL', 'VERY_HIGH', 'DIRECT_DESCRIPTION', 'Directly identifies deep-groove or angular contact ball bearing.');
+                addCandidate('BEARING', 'DEEP GROOVE BALL', 'HIGH', 'CONSTRUCTION', 'Deep-groove raceway construction subtype.');
+                addCandidate('BEARING', 'RADIAL BALL', 'MEDIUM', 'FUNCTION', 'Radial load carrying mechanical bearing classification.');
+                addCandidate('BEARING', 'ROTATING EQUIPMENT', 'LOW', 'APPLICATION', 'Rotating equipment spare part taxonomy.');
+            } else if (/\bROLLER\b/i.test(pUpper)) {
+                addCandidate('BEARING', 'ROLLER', 'VERY_HIGH', 'DIRECT_DESCRIPTION', 'Directly identifies cylindrical/spherical roller bearing.');
+                addCandidate('BEARING', 'SPHERICAL ROLLER', 'HIGH', 'CONSTRUCTION', 'Spherical self-aligning roller bearing subtype.');
+                addCandidate('BEARING', 'HEAVY DUTY ROLLER', 'MEDIUM', 'FUNCTION', 'High radial load capacity classification.');
+            } else {
+                addCandidate('BEARING', 'BALL', 'HIGH', 'DIRECT_DESCRIPTION', 'Standard industrial anti-friction ball bearing.');
+                addCandidate('BEARING', 'ROLLER', 'MEDIUM', 'TAXONOMY_ALTERNATIVE', 'Roller bearing mechanical alternative.');
+            }
+        }
 
-        // 4. Engineering category classification (Accuracy 81%)
-        const categoryNoun = (primaryNoun === 'WRENCH') ? 'TOOL' : (primaryNoun === 'VALVE' ? 'PIPING SPECIALTY' : (primaryNoun === 'ACTUATOR' ? 'VALVE ACCESSORY' : 'COMPONENT'));
-        suggestions.push({
-            noun: categoryNoun,
-            modifier: `${primaryNoun} ${primaryMod}`.trim(),
-            oem: effectiveOem,
-            accuracy: 81,
-            isTop: false
-        });
+        // --- DOMAIN RULE 7: Gaskets & Seals ---
+        else if (/\b(?:GASKET|GSKT)\b/i.test(pUpper)) {
+            if (/\bSPIRAL\s*WOUND\b/i.test(pUpper) || /\bSWG\b/i.test(pUpper)) {
+                addCandidate('GASKET', 'SPIRAL WOUND', 'VERY_HIGH', 'CONSTRUCTION', 'Metallic winding with filler construction for high-pressure sealing.');
+                addCandidate('GASKET', 'FLANGE', 'HIGH', 'FUNCTION', 'Standard ASME/DIN pipe flange sealing duty.');
+                addCandidate('GASKET', 'METALLIC', 'MEDIUM', 'TAXONOMY_ALTERNATIVE', 'Metallic gasket material group alternative.');
+                addCandidate('SEAL', 'SPIRAL WOUND GASKET', 'LOW', 'TAXONOMY_ALTERNATIVE', 'Static mechanical seal parent family alternative.');
+            } else if (/\bRING\s*JOINT\b/i.test(pUpper) || /\bRTJ\b/i.test(pUpper)) {
+                addCandidate('GASKET', 'RING JOINT', 'VERY_HIGH', 'CONSTRUCTION', 'Precision metallic ring joint gasket for high-pressure flanges.');
+                addCandidate('GASKET', 'METALLIC', 'HIGH', 'TAXONOMY_ALTERNATIVE', 'Solid metal sealing ring classification.');
+            } else {
+                addCandidate('GASKET', 'FLANGE', 'VERY_HIGH', 'FUNCTION', 'Flanged joint static fluid sealing.');
+                addCandidate('GASKET', 'NON METALLIC', 'HIGH', 'CONSTRUCTION', 'Elastomeric or compressed fiber construction subtype.');
+            }
+        }
 
-        // 5. Commercial Sourcing Alternative (Accuracy 76%)
-        // Swaps OEM status: if currently OEM, show NON OEM equivalent; if currently NON OEM, show OEM equivalent
-        const counterpartOem = (effectiveOem === 'OEM') ? 'NON OEM' : 'OEM';
-        suggestions.push({
-            noun: primaryNoun,
-            modifier: (counterpartOem === 'OEM') ? `${primaryMod} (OEM DIRECT REPLACEMENT)` : `${primaryMod} (COMMERCIAL EQUIVALENT)`,
-            oem: counterpartOem,
-            accuracy: 76,
-            isTop: false
-        });
+        // --- DOMAIN RULE 8: Pumps ---
+        else if (/\b(?:PUMP|PP)\b/i.test(pUpper)) {
+            if (/\bCENTRIFUGAL\b/i.test(pUpper)) {
+                addCandidate('PUMP', 'CENTRIFUGAL', 'VERY_HIGH', 'DIRECT_DESCRIPTION', 'Directly identifies dynamic impeller centrifugal pump.');
+                addCandidate('PUMP', 'PROCESS', 'HIGH', 'APPLICATION', 'Chemical and petrochemical process fluid transfer.');
+                addCandidate('PUMP', 'HORIZONTAL CENTRIFUGAL', 'MEDIUM', 'CONSTRUCTION', 'Shaft orientation construction subtype.');
+            } else if (/\bRECIPROCATING\b/i.test(pUpper) || /\bPLUNGER\b/i.test(pUpper) || /\bPISTON\b/i.test(pUpper)) {
+                addCandidate('PUMP', 'RECIPROCATING', 'VERY_HIGH', 'DIRECT_DESCRIPTION', 'Directly identifies positive displacement reciprocating pump.');
+                addCandidate('PUMP', 'POSITIVE DISPLACEMENT', 'HIGH', 'FUNCTION', 'Positive displacement operating principle taxonomy.');
+            } else {
+                addCandidate('PUMP', 'CENTRIFUGAL', 'HIGH', 'DIRECT_DESCRIPTION', 'Most common industrial process pump type.');
+                addCandidate('PUMP', 'POSITIVE DISPLACEMENT', 'MEDIUM', 'TAXONOMY_ALTERNATIVE', 'Alternative operating mechanism class.');
+            }
+        }
 
-        // 6. Detailed application modifier (Accuracy 71%)
-        const altMod3 = modOptions[3] || 'INDUSTRIAL GRADE';
-        suggestions.push({
-            noun: primaryNoun,
-            modifier: altMod3,
-            oem: effectiveOem,
-            accuracy: 71,
-            isTop: false
-        });
+        // --- DOMAIN RULE 9: Tools / Wrenches ---
+        else if (/\b(?:WRENCH|SPANNER)\b/i.test(pUpper)) {
+            if (/\bTORQUE\b/i.test(pUpper)) {
+                addCandidate('WRENCH', 'TORQUE', 'VERY_HIGH', 'DIRECT_DESCRIPTION', 'Directly identifies precision torque tightening wrench.');
+                addCandidate('WRENCH', 'MECHANICAL TORQUE', 'HIGH', 'CONSTRUCTION', 'Mechanical click-type calibrated torque application tool.');
+                addCandidate('WRENCH', 'ADJUSTABLE TORQUE', 'HIGH', 'TAXONOMY_ALTERNATIVE', 'Adjustable scale torque setting subtype.');
+                addCandidate('TOOL', 'TORQUE WRENCH', 'MEDIUM', 'TAXONOMY_ALTERNATIVE', 'General hand tool parent family classification.');
+                addCandidate('WRENCH', 'MANUAL TORQUE', 'MEDIUM', 'FUNCTION', 'Manual bolting and fastener torque control.');
+                addCandidate('WRENCH', 'SOCKET', 'LOW', 'TAXONOMY_ALTERNATIVE', 'Drive socket tool interface alternative.');
+            } else if (/\bOPEN\s*END\b/i.test(pUpper)) {
+                addCandidate('WRENCH', 'OPEN END', 'VERY_HIGH', 'DIRECT_DESCRIPTION', 'Directly identifies open-ended fastener turning tool.');
+                addCandidate('WRENCH', 'COMBINATION', 'HIGH', 'TAXONOMY_ALTERNATIVE', 'Combination box and open-end taxonomy alternative.');
+            } else if (/\bADJUSTABLE\b/i.test(pUpper)) {
+                addCandidate('WRENCH', 'ADJUSTABLE', 'VERY_HIGH', 'DIRECT_DESCRIPTION', 'Directly identifies movable jaw adjustable spanner.');
+            } else if (/\bHAMMERING\b/i.test(pUpper) || /\bSLUGGING\b/i.test(pUpper) || /\bSTRIKING\b/i.test(pUpper)) {
+                addCandidate('WRENCH', 'HAMMERING', 'VERY_HIGH', 'DIRECT_DESCRIPTION', 'Heavy-duty striking box wrench for shock loosening.');
+            } else {
+                addCandidate('WRENCH', 'HAND', 'HIGH', 'FUNCTION', 'Standard industrial manual hand tool.');
+                addCandidate('WRENCH', 'ADJUSTABLE', 'MEDIUM', 'TAXONOMY_ALTERNATIVE', 'Adjustable turning tool alternative.');
+            }
+        }
 
-        // 7. Standardized MRO variant (Accuracy 66%)
-        suggestions.push({
-            noun: primaryNoun,
-            modifier: 'STANDARD',
-            oem: effectiveOem,
-            accuracy: 66,
-            isTop: false
-        });
+        // --- DOMAIN RULE 10: Flanges & Fittings ---
+        else if (/\bFLANGE\b/i.test(pUpper)) {
+            if (/\bWELD\s*NECK\b/i.test(pUpper) || /\bWN\b/i.test(pUpper)) {
+                addCandidate('FLANGE', 'WELD NECK', 'VERY_HIGH', 'DIRECT_DESCRIPTION', 'Directly identifies tapered neck butt-welded piping flange.');
+                addCandidate('FLANGE', 'PIPE', 'HIGH', 'FUNCTION', 'Pressurized process line pipe joining classification.');
+            } else if (/\bBLIND\b/i.test(pUpper)) {
+                addCandidate('FLANGE', 'BLIND', 'VERY_HIGH', 'DIRECT_DESCRIPTION', 'Directly identifies solid bolted pipe end closure flange.');
+            } else if (/\bSLIP\s*ON\b/i.test(pUpper) || /\bSO\b/i.test(pUpper)) {
+                addCandidate('FLANGE', 'SLIP ON', 'VERY_HIGH', 'DIRECT_DESCRIPTION', 'Directly identifies fillet-welded slip-on flange.');
+            } else {
+                addCandidate('FLANGE', 'PIPE', 'HIGH', 'FUNCTION', 'Standard industrial pipe joining flange.');
+            }
+        }
 
-        // Synthesize authoritative Engineering Reasoning
-        const reasoning = `Semantic NLP extraction from description tokens: identified primary equipment entity "${primaryNoun}" with operational modifier "${primaryMod}". OEM classification verified as ${effectiveOem} (${oemReasonNote}). Standardized conforming to MRO Corporate Material Master Taxonomy.`;
+        // --- DOMAIN RULE 11: Fasteners / Bolts ---
+        else if (/\b(?:BOLT|STUD|FASTENER)\b/i.test(pUpper)) {
+            if (/\bSTUD\b/i.test(pUpper)) {
+                addCandidate('BOLT', 'STUD', 'VERY_HIGH', 'DIRECT_DESCRIPTION', 'Directly identifies fully threaded headless stud bolt for flanged connections.');
+                addCandidate('FASTENER', 'STUD BOLT', 'HIGH', 'TAXONOMY_ALTERNATIVE', 'General fastener parent family taxonomy.');
+                addCandidate('BOLT', 'FLANGE STUD', 'MEDIUM', 'APPLICATION', 'Pressure-retaining piping flange bolting subtype.');
+            } else if (/\bHEX\b/i.test(pUpper)) {
+                addCandidate('BOLT', 'HEX HEAD', 'VERY_HIGH', 'DIRECT_DESCRIPTION', 'Hexagonal head machine bolt.');
+                addCandidate('BOLT', 'MACHINE', 'HIGH', 'FUNCTION', 'Industrial structural assembly bolting.');
+            } else {
+                addCandidate('BOLT', 'STUD', 'HIGH', 'DIRECT_DESCRIPTION', 'Standard flanged piping stud bolt.');
+                addCandidate('FASTENER', 'BOLT', 'MEDIUM', 'TAXONOMY_ALTERNATIVE', 'Fastener category alternative.');
+            }
+        }
+
+        // --- DOMAIN RULE 12: Generic / Fallback NLP Synthesis ---
+        if (candidateList.length === 0) {
+            let n = 'MATERIAL';
+            let m = 'STANDARD';
+            if (/\b(ACTUATOR)\b/i.test(pUpper)) { n = 'ACTUATOR'; m = /\bPNEUMATIC\b/i.test(pUpper) ? 'PNEUMATIC' : 'ELECTRIC'; }
+            else if (/\b(TRANSMITTER)\b/i.test(pUpper)) { n = 'TRANSMITTER'; m = /\bPRESSURE\b/i.test(pUpper) ? 'PRESSURE' : 'TEMPERATURE'; }
+            else if (/\b(SENSOR)\b/i.test(pUpper)) { n = 'SENSOR'; m = /\bTEMPERATURE\b/i.test(pUpper) ? 'TEMPERATURE' : 'PROXIMITY'; }
+            else if (/\b(GAUGE)\b/i.test(pUpper)) { n = 'GAUGE'; m = /\bPRESSURE\b/i.test(pUpper) ? 'PRESSURE' : 'LEVEL'; }
+            else if (/\b(MOTOR)\b/i.test(pUpper)) { n = 'MOTOR'; m = /\bELECTRIC\b/i.test(pUpper) ? 'ELECTRIC' : 'INDUCTION'; }
+            else if (/\b(CABLE)\b/i.test(pUpper)) { n = 'CABLE'; m = /\bPOWER\b/i.test(pUpper) ? 'POWER' : 'CONTROL'; }
+            else if (/\b(FILTER)\b/i.test(pUpper)) { n = 'FILTER'; m = /\bCARTRIDGE\b/i.test(pUpper) ? 'CARTRIDGE' : 'LIQUID'; }
+
+            addCandidate(n, m, 'VERY_HIGH', 'DIRECT_DESCRIPTION', `Direct identification of equipment class ${n}.`);
+            addCandidate(n, 'INDUSTRIAL', 'HIGH', 'APPLICATION', 'Industrial application standard classification.');
+            addCandidate('EQUIPMENT', n, 'MEDIUM', 'TAXONOMY_ALTERNATIVE', 'General equipment parent family taxonomy.');
+        }
+
+        // Map confidence categories to numerical percentages and ranking
+        const confAccuracyMap = {
+            'VERY_HIGH': 98,
+            'HIGH': 90,
+            'MEDIUM': 80,
+            'LOW': 70
+        };
+
+        const suggestions = candidateList.map((cand, idx) => ({
+            rank: idx + 1,
+            noun: cand.noun,
+            modifier: cand.modifier,
+            confidence: cand.confidence,
+            accuracy: confAccuracyMap[cand.confidence] || 85,
+            reason: cand.reason,
+            classification_basis: cand.classification_basis,
+            oem: cand.oem,
+            isTop: (idx === 0)
+        }));
+
+        const top = suggestions[0];
+        const reasoning = `Engineering Semantics & Taxonomy Analysis: Physical product identified as "${top.noun}" with standardized modifier "${top.modifier}" [Basis: ${top.classification_basis}]. OEM evaluation: ${effectiveOem} (${oemReasonNote}). Conforms to MRO Corporate Material Master Taxonomy.`;
 
         return {
-            noun: primaryNoun,
-            modifier: primaryMod,
+            noun: top.noun,
+            modifier: top.modifier,
+            confidence: top.confidence,
+            accuracy: top.accuracy,
             oem: effectiveOem,
-            confidence: 98,
             reasoning: reasoning,
-            source: 'ai-nlp-material-intelligence',
-            model: 'Catalyst Semantic Intelligence',
+            source: 'ai-expert-material-master',
+            model: 'Manufacturing Material Master AI',
             suggestions: suggestions
         };
     }
@@ -5230,14 +5406,14 @@
                 body: JSON.stringify({
                     model: 'gpt-5.4-mini-2026-03-17',
                     reasoning: { effort: 'low' },
-                    instructions: 'You are an expert MRO Material Master Standardization Engine. Analyze the given industrial material description. Determine the most accurate standardized NOUN and MODIFIER conforming to corporate taxonomy (e.g., ISO, Shell, SAP catalog standards). Also determine the OEM status (OEM or NON OEM), confidence percentage (e.g. 98), engineering reasoning, and top 3 alternative suggestions. You MUST respond with a valid JSON object ONLY: {"noun": "WRENCH", "modifier": "TORQUE", "confidence": 98, "reasoning": "...", "oem": "NON OEM", "alternatives": [{"noun": "WRENCH", "modifier": "ADJUSTABLE", "confidence": 85}]}',
+                    instructions: EXPERT_SYSTEM_PROMPT,
                     input: desc
                 })
             });
 
             if (res.ok) {
                 const data = await res.json();
-                const parsed = parseOpenAiOutput(data);
+                const parsed = parseOpenAiOutput(data, item);
                 if (parsed && parsed.noun) {
                     parsed.source = 'openai-responses';
                     parsed.model = 'gpt-5.4-mini-2026-03-17';
@@ -5261,7 +5437,7 @@
                     messages: [
                         {
                             role: 'system',
-                            content: 'You are an expert MRO Material Master Standardization Engine. Analyze the given industrial material description. Determine the most accurate standardized NOUN and MODIFIER conforming to corporate taxonomy (e.g., ISO, Shell, SAP catalog standards). Also determine the OEM status (OEM or NON OEM), confidence percentage (e.g. 98), engineering reasoning, and top 3 alternative suggestions. You MUST respond with a valid JSON object ONLY: {"noun": "WRENCH", "modifier": "TORQUE", "confidence": 98, "reasoning": "...", "oem": "NON OEM", "alternatives": [{"noun": "WRENCH", "modifier": "ADJUSTABLE", "confidence": 85}]}'
+                            content: EXPERT_SYSTEM_PROMPT
                         },
                         {
                             role: 'user',
@@ -5274,7 +5450,7 @@
 
             if (chatRes.ok) {
                 const chatData = await chatRes.json();
-                const parsed = parseOpenAiOutput(chatData);
+                const parsed = parseOpenAiOutput(chatData, item);
                 if (parsed && parsed.noun) {
                     parsed.source = 'openai-chat';
                     parsed.model = 'gpt-4o-mini';
@@ -5289,7 +5465,7 @@
         return analyzeRecordWithAI(item || { description: desc });
     }
 
-    function parseOpenAiOutput(data) {
+    function parseOpenAiOutput(data, item = null) {
         let text = '';
         if (data.output && Array.isArray(data.output) && data.output[0]?.content && Array.isArray(data.output[0].content)) {
             text = data.output[0].content[0]?.text || '';
@@ -5304,7 +5480,39 @@
         const jsonMatch = text.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
             try {
-                return JSON.parse(jsonMatch[0]);
+                const parsed = JSON.parse(jsonMatch[0]);
+                if (parsed && Array.isArray(parsed.suggestions) && parsed.suggestions.length > 0) {
+                    const confAccuracyMap = {
+                        'VERY_HIGH': 98,
+                        'HIGH': 90,
+                        'MEDIUM': 80,
+                        'LOW': 70
+                    };
+                    const itemOem = (item && item.oem && item.oem !== '--') ? item.oem : 'NON OEM';
+                    const mappedSuggestions = parsed.suggestions.map((s, idx) => ({
+                        rank: s.rank || (idx + 1),
+                        noun: (s.noun || '').trim().toUpperCase(),
+                        modifier: (s.modifier || '').trim().toUpperCase(),
+                        confidence: s.confidence || 'HIGH',
+                        accuracy: confAccuracyMap[s.confidence] || 88,
+                        reason: s.reason || 'Conforms to Material Master Taxonomy.',
+                        classification_basis: s.classification_basis || 'DIRECT_DESCRIPTION',
+                        oem: s.oem || itemOem,
+                        isTop: (idx === 0)
+                    }));
+                    const top = mappedSuggestions[0];
+                    return {
+                        noun: top.noun,
+                        modifier: top.modifier,
+                        confidence: top.confidence,
+                        accuracy: top.accuracy,
+                        oem: top.oem,
+                        reasoning: top.reason,
+                        source: 'openai-gpt',
+                        suggestions: mappedSuggestions
+                    };
+                }
+                return parsed;
             } catch (e) {}
         }
         return null;
@@ -5312,199 +5520,6 @@
 
     function getTaxonomyFallbackClassification(desc) {
         return analyzeRecordWithAI({ description: desc });
-    }
-
-    function renderAiModalContent(item, aiResult, apiKey, isEditingKey, isLoading) {
-        if (isLoading) {
-            el.aiModalBody.innerHTML = `
-                <div class="target-item-card">
-                    <div class="target-badge">INPUT SPECIFICATION: RECORD #${item.sno}</div>
-                    <div class="target-desc">${escapeHtml(item.description)}</div>
-                </div>
-
-                <div class="ai-loading-state" style="text-align: center; padding: 35px 20px;">
-                    <div class="caching-spinner" style="display: inline-block; width: 34px; height: 34px; border: 3px solid #e9d5ff; border-top: 3px solid #7c3aed; border-radius: 50%; margin-bottom: 12px; animation: spin 1s linear infinite;"></div>
-                    <div style="font-size: 14.5px; font-weight: 700; color: #6b21a8;">Connecting to OpenAI gpt-5.4-mini-2026-03-17...</div>
-                    <div style="font-size: 12px; color: #9333ea; margin-top: 5px;">Executing deep neural classification against material description</div>
-                </div>
-            `;
-            return;
-        }
-
-        const maskedKey = apiKey ? (apiKey.substring(0, 7) + '...' + apiKey.substring(apiKey.length - 4)) : '';
-
-        const keyBarHtml = (isEditingKey || !apiKey) ? `
-            <div class="ai-key-config-box" style="background: #fdf4ff; border: 1px dashed #c084fc; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px;">
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
-                    <span style="font-size: 11.5px; font-weight: 700; color: #7e22ce; text-transform: uppercase;">🔑 OpenAI API Key Configuration</span>
-                    ${apiKey ? `<button type="button" class="btn-text-cancel-key" id="btnCancelAiKey" style="font-size: 11px; color: #64748b; background: none; border: none; cursor: pointer;">Cancel</button>` : ''}
-                </div>
-                <div style="display: flex; gap: 8px;">
-                    <input type="password" id="inputAiApiKey" style="flex: 1; padding: 6px 10px; font-size: 12px; border: 1px solid #d8b4fe; border-radius: 6px; outline: none;" placeholder="sk-proj-..." value="${escapeHtml(apiKey || '')}" />
-                    <button type="button" id="btnSaveAiApiKey" style="padding: 6px 14px; font-size: 12px; font-weight: 600; background: #7c3aed; color: #ffffff; border: none; border-radius: 6px; cursor: pointer;">Save &amp; Analyze</button>
-                </div>
-                <div style="font-size: 11px; color: #9333ea; margin-top: 4px;">Key is stored safely in your browser session/localStorage.</div>
-            </div>
-        ` : `
-            <div class="ai-key-status-bar" style="display: flex; align-items: center; justify-content: space-between; background: #fdf4ff; border: 1px solid #f0abfc; border-radius: 6px; padding: 6px 12px; margin-bottom: 14px;">
-                <div style="display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: #7e22ce;">
-                    <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #16a34a;"></span>
-                    <span>Live OpenAI Key: <strong>${escapeHtml(maskedKey)}</strong></span>
-                    <span style="background: #fae8ff; color: #a21caf; border: 1px solid #f5d0fe; padding: 1px 6px; border-radius: 4px; font-weight: 700; font-size: 10.5px;">gpt-5.4-mini</span>
-                </div>
-                <button type="button" id="btnEditAiKey" style="background: none; border: none; font-size: 11px; color: #7c3aed; font-weight: 600; cursor: pointer; text-decoration: underline;">Change Key</button>
-            </div>
-        `;
-
-        const altsHtml = (aiResult.alternatives && aiResult.alternatives.length > 0) ? `
-            <div class="ai-alts-container" style="margin-top: 14px; border-top: 1px solid #e9d5ff; padding-top: 10px;">
-                <div style="font-size: 11.5px; font-weight: 700; color: #6b21a8; text-transform: uppercase; margin-bottom: 8px;">Alternative Standard Classifications:</div>
-                <div style="display: flex; flex-direction: column; gap: 6px;">
-                    ${aiResult.alternatives.map((alt) => `
-                        <div class="ai-alt-row" style="display: flex; align-items: center; justify-content: space-between; background: #ffffff; border: 1px solid #e9d5ff; border-radius: 6px; padding: 6px 10px;">
-                            <div>
-                                <strong style="color: #4c1d95; font-size: 12.5px;">${escapeHtml(alt.noun)}</strong>
-                                <span style="color: #9333ea; font-size: 12px; margin-left: 4px;">| ${escapeHtml(alt.modifier)}</span>
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <span style="font-size: 11px; font-weight: 700; color: #7c3aed;">${alt.confidence}%</span>
-                                <button type="button" class="btn-alt-apply-action" data-noun="${escapeHtml(alt.noun)}" data-mod="${escapeHtml(alt.modifier)}" style="background: #f3e8ff; border: 1px solid #d8b4fe; color: #7c3aed; padding: 3px 10px; border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer;">Apply</button>
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-        ` : '';
-
-        const modelBadgeText = aiResult.source === 'openai-responses' 
-            ? '✓ Verified by OpenAI gpt-5.4-mini-2026-03-17' 
-            : aiResult.source === 'openai-chat' 
-            ? '✓ Verified by OpenAI gpt-4o-mini' 
-            : 'AI Classification Match';
-
-        el.aiModalBody.innerHTML = `
-            <div class="target-item-card">
-                <div class="target-badge">INPUT SPECIFICATION: RECORD #${item.sno}</div>
-                <div class="target-desc">${escapeHtml(item.description)}</div>
-            </div>
-
-            ${keyBarHtml}
-
-            <div class="ai-recommendation-box">
-                <div class="ai-rec-header">
-                    <span style="font-size: 11.5px; font-weight: 700; color: #7c3aed; text-transform: uppercase;">${modelBadgeText}</span>
-                    <span class="ai-confidence-pill">${aiResult.confidence}% Match</span>
-                </div>
-                <div class="ai-rec-result" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                    <span>${escapeHtml(aiResult.noun)} | ${escapeHtml(aiResult.modifier)}</span>
-                    ${aiResult.oem ? `<span style="font-size: 11px; padding: 2px 7px; border-radius: 4px; background: #e0f2fe; color: #0369a1; font-weight: 700;">${escapeHtml(aiResult.oem)}</span>` : ''}
-                </div>
-                <p class="ai-reasoning">${escapeHtml(aiResult.reasoning)}</p>
-
-                ${altsHtml}
-            </div>
-        `;
-
-        el.btnAcceptAISuggestion.dataset.noun = aiResult.noun;
-        el.btnAcceptAISuggestion.dataset.mod = aiResult.modifier;
-        el.btnAcceptAISuggestion.dataset.oem = aiResult.oem || item.oem || '--';
-
-        // Bind inner key action listeners
-        const btnSaveKey = document.getElementById('btnSaveAiApiKey');
-        if (btnSaveKey) {
-            btnSaveKey.addEventListener('click', () => {
-                const inp = document.getElementById('inputAiApiKey');
-                if (inp && inp.value.trim()) {
-                    const newKey = inp.value.trim();
-                    localStorage.setItem('OPENAI_API_KEY', newKey);
-                    isEditingAiKey = false;
-                    executeAiClassificationForModal(item, newKey);
-                    showToast('OpenAI API Key saved successfully!', 'success');
-                }
-            });
-        }
-
-        const btnEditKey = document.getElementById('btnEditAiKey');
-        if (btnEditKey) {
-            btnEditKey.addEventListener('click', () => {
-                isEditingAiKey = true;
-                renderAiModalContent(item, aiResult, apiKey, true, false);
-            });
-        }
-
-        const btnCancelKey = document.getElementById('btnCancelAiKey');
-        if (btnCancelKey) {
-            btnCancelKey.addEventListener('click', () => {
-                isEditingAiKey = false;
-                renderAiModalContent(item, aiResult, apiKey, false, false);
-            });
-        }
-
-        // Bind alternative apply buttons
-        const altBtns = el.aiModalBody.querySelectorAll('.btn-alt-apply-action');
-        altBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                const n = btn.getAttribute('data-noun');
-                const m = btn.getAttribute('data-mod');
-                applyAiClassificationToRecord(item, n, m);
-            });
-        });
-    }
-
-    async function executeAiClassificationForModal(item, apiKey) {
-        renderAiModalContent(item, null, apiKey, false, true);
-        const aiResult = await queryOpenAiMaterialIntelligence(item.description, apiKey);
-        renderAiModalContent(item, aiResult, apiKey, isEditingAiKey, false);
-    }
-
-    function openAIModalForRecord(item) {
-        state.activeRecord = item;
-        const storedKey = localStorage.getItem('OPENAI_API_KEY') || '';
-        isEditingAiKey = !storedKey;
-
-        openModal(el.aiModal);
-        executeAiClassificationForModal(item, storedKey);
-    }
-
-    function applyAiClassificationToRecord(item, noun, mod, oem = null) {
-        item.noun = noun;
-        item.modifier = mod;
-        item.nounModifier = (mod && mod !== '--') ? `${noun}|${mod}` : noun;
-        item.nmStatus = 'ASSIGNED';
-        if (oem && oem !== '--') {
-            item.oem = oem;
-        }
-        state.hasUnsavedChanges = true;
-
-        updateStatsCounters();
-
-        // Directly update parent row in the DOM with pulse animation
-        const parentTr = document.getElementById(`row-${item.sno}`);
-        if (parentTr) {
-            const nounCell = parentTr.querySelector('.cell-noun');
-            if (nounCell) {
-                nounCell.innerHTML = `<span class="noun-badge badge-updated-flash">${escapeHtml(noun)}</span>`;
-            }
-            const modCell = parentTr.querySelector('.cell-modifier');
-            if (modCell) {
-                modCell.innerHTML = (mod && mod !== '--')
-                    ? `<span class="modifier-badge badge-updated-flash"><span class="nm-noun">${escapeHtml(noun)}</span><span class="nm-sep">|</span><span class="nm-mod">${escapeHtml(mod)}</span></span>`
-                    : `<span class="modifier-badge modifier-pending">--</span>`;
-            }
-            if (oem && oem !== '--') {
-                const oemSelect = parentTr.querySelector('.oem-badge-select');
-                if (oemSelect) {
-                    oemSelect.value = oem;
-                    oemSelect.classList.remove('oem-badge-yes', 'oem-badge-non', 'oem-badge-pending');
-                    if (oem === 'OEM') oemSelect.classList.add('oem-badge-yes');
-                    else if (oem === 'NON OEM') oemSelect.classList.add('oem-badge-non');
-                    else oemSelect.classList.add('oem-badge-pending');
-                }
-            }
-        }
-
-        showToast(`AI Match accepted: ${noun} | ${mod} for S.No #${item.sno}`, 'success');
-        closeModal(el.aiModal);
     }
 
     // ==========================================================================
@@ -5549,7 +5564,7 @@
             );
 
             return `
-                <tr class="${isCurrentlyApplied ? 'sug-applied' : ''}">
+                <tr class="${isCurrentlyApplied ? 'sug-applied' : ''}" title="${escapeHtml(sug.reason || '')} [Basis: ${escapeHtml(sug.classification_basis || 'DIRECT_DESCRIPTION')}]">
                     <td class="col-sug-num">
                         ${num}
                         ${sug.isTop ? `<span class="top-ai-star" title="AI Top Recommendation">TOP</span>` : ''}
@@ -5567,6 +5582,7 @@
                                 <div class="sug-acc-fill ${colorClass}" style="width: ${sug.accuracy}%;"></div>
                             </div>
                             <span class="sug-acc-val ${colorClass}">${sug.accuracy}%</span>
+                            <span class="sug-conf-badge conf-${(sug.confidence || 'HIGH').toLowerCase().replace('_', '-')}">${escapeHtml((sug.confidence || 'HIGH').replace('_', ' '))}</span>
                         </div>
                     </td>
                     <td class="col-sug-act">

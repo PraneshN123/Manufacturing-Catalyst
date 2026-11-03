@@ -1308,6 +1308,38 @@ th.col-actions, td.cell-actions { width: 260px; min-width: 260px; padding: 10px 
 .sug-acc-val.acc-orange { color: #f59e0b; }
 .sug-acc-val.acc-red { color: #ef4444; }
 
+.sug-conf-badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 7px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+    margin-left: 6px;
+    display: inline-block;
+}
+.sug-conf-badge.conf-very-high {
+    background-color: #dcfce7;
+    color: #15803d;
+    border: 1px solid #bbf7d0;
+}
+.sug-conf-badge.conf-high {
+    background-color: #e0f2fe;
+    color: #0369a1;
+    border: 1px solid #bae6fd;
+}
+.sug-conf-badge.conf-medium {
+    background-color: #fef3c7;
+    color: #b45309;
+    border: 1px solid #fde68a;
+}
+.sug-conf-badge.conf-low {
+    background-color: #fee2e2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+}
+
 /* Sub-table Action Buttons */
 .sug-actions {
     display: flex;
