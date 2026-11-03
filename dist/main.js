@@ -3550,6 +3550,10 @@
                 rowId: item.ROWID || null,
                 workbenchId: item.Workbenchid || 'WorkBenchID-01',
                 batches: item.Batches || null,
+                site: item.Plant || item.site || item.Site || 'TPPC',
+                plant: item.Plant || item.site || item.Site || 'TPPC',
+                uom: item.UOM || item.uom || 'NO',
+                priority: item.Priority_Item || item.priority || 'Standard',
                 nmStatus: item.NM_Status || 'PENDING',
                 assignedNoun: item.assigned_noun || null,
                 assignedModifier: item.assigned_modifier || null,
@@ -5873,7 +5877,7 @@ function renderOpenAiTableRows(item, aiResult) {
                                     <span class="prompt-noun-val" id="openaiNounVal-${item.sno}">${escapeHtml(nounVal)}</span>
                                     <span class="prompt-pipe-sep">|</span>
                                     <span class="prompt-mod-text">Modifier:</span>
-                                    <span class="prompt-mod-val" id="openaiModVal-${item.sno}">|${escapeHtml(modVal)}</span>
+                                    <span class="prompt-mod-val" id="openaiModVal-${item.sno}">${escapeHtml(modVal)}</span>
                                 </div>
                                 <div class="prompt-header-right">
                                     <span class="ai-source-badge openai-source-badge">
@@ -6787,10 +6791,146 @@ function expandInlineAssign(sno, isDirectRender = false) {
     // 7.2. INLINE ATTRIBUTE TEMPLATE DRAWER (MATCHING USER SPECIFICATION)
     // ==========================================================================
 
+    // STRICT CORPORATE NON-OEM TEMPLATE (Strictly 106 attributes numbered 1-106)
+    const NON_OEM_TEMPLATE_ATTRIBUTES = [
+        "Sl No",
+        "Site",
+        "Item Code",
+        "Site|ItemCode",
+        "EXISTING ITEM DESCRIPTION ( SHORT)",
+        "EXISTING ITEM DESCRIPTION ( LONG)",
+        "UOM",
+        "ITEM CATEGORY",
+        "SHORT DESCRIPTION - SAP",
+        "Len",
+        "LONG DESCRIPTION - SAP",
+        "NOUN",
+        "MODIFIER",
+        "NOUN|MODIFIER",
+        "ATTRIBUTE_NAME_1",
+        "ATTRIBUTE_STANDARDIZED_VALUE_1",
+        "ATTRIBUTE_NAME_2",
+        "ATTRIBUTE_STANDARDIZED_VALUE_2",
+        "ATTRIBUTE_NAME_3",
+        "ATTRIBUTE_STANDARDIZED_VALUE_3",
+        "ATTRIBUTE_NAME_4",
+        "ATTRIBUTE_STANDARDIZED_VALUE_4",
+        "ATTRIBUTE_NAME_5",
+        "ATTRIBUTE_STANDARDIZED_VALUE_5",
+        "ATTRIBUTE_NAME_6",
+        "ATTRIBUTE_STANDARDIZED_VALUE_6",
+        "ATTRIBUTE_NAME_7",
+        "ATTRIBUTE_STANDARDIZED_VALUE_7",
+        "ATTRIBUTE_NAME_8",
+        "ATTRIBUTE_STANDARDIZED_VALUE_8",
+        "ATTRIBUTE_NAME_9",
+        "ATTRIBUTE_STANDARDIZED_VALUE_9",
+        "ATTRIBUTE_NAME_10",
+        "ATTRIBUTE_STANDARDIZED_VALUE_10",
+        "ATTRIBUTE_NAME_11",
+        "ATTRIBUTE_STANDARDIZED_VALUE_11",
+        "ATTRIBUTE_NAME_12",
+        "ATTRIBUTE_STANDARDIZED_VALUE_12",
+        "ATTRIBUTE_NAME_13",
+        "ATTRIBUTE_STANDARDIZED_VALUE_13",
+        "ATTRIBUTE_NAME_14",
+        "ATTRIBUTE_STANDARDIZED_VALUE_14",
+        "ATTRIBUTE_NAME_15",
+        "ATTRIBUTE_STANDARDIZED_VALUE_15",
+        "ATTRIBUTE_NAME_16",
+        "ATTRIBUTE_STANDARDIZED_VALUE_16",
+        "ATTRIBUTE_NAME_17",
+        "ATTRIBUTE_STANDARDIZED_VALUE_17",
+        "ATTRIBUTE_NAME_18",
+        "ATTRIBUTE_STANDARDIZED_VALUE_18",
+        "ATTRIBUTE_NAME_19",
+        "ATTRIBUTE_STANDARDIZED_VALUE_19",
+        "ATTRIBUTE_NAME_20",
+        "ATTRIBUTE_STANDARDIZED_VALUE_20",
+        "ATTRIBUTE_NAME_21",
+        "ATTRIBUTE_STANDARDIZED_VALUE_21",
+        "ATTRIBUTE_NAME_22",
+        "ATTRIBUTE_STANDARDIZED_VALUE_22",
+        "ATTRIBUTE_NAME_23",
+        "ATTRIBUTE_STANDARDIZED_VALUE_23",
+        "ATTRIBUTE_NAME_24",
+        "ATTRIBUTE_STANDARDIZED_VALUE_24",
+        "ATTRIBUTE_NAME_25",
+        "ATTRIBUTE_STANDARDIZED_VALUE_25",
+        "ATTRIBUTE_NAME_26",
+        "ATTRIBUTE_STANDARDIZED_VALUE_26",
+        "ATTRIBUTE_NAME_27",
+        "ATTRIBUTE_STANDARDIZED_VALUE_27",
+        "ATTRIBUTE_NAME_28",
+        "ATTRIBUTE_STANDARDIZED_VALUE_28",
+        "ATTRIBUTE_NAME_29",
+        "ATTRIBUTE_STANDARDIZED_VALUE_29",
+        "ATTRIBUTE_NAME_30",
+        "ATTRIBUTE_STANDARDIZED_VALUE_30",
+        "ATTRIBUTE_NAME_31",
+        "ATTRIBUTE_STANDARDIZED_VALUE_31",
+        "ATTRIBUTE_NAME_32",
+        "ATTRIBUTE_STANDARDIZED_VALUE_32",
+        "ATTRIBUTE_NAME_33",
+        "ATTRIBUTE_STANDARDIZED_VALUE_33",
+        "ATTRIBUTE_NAME_34",
+        "ATTRIBUTE_STANDARDIZED_VALUE_34",
+        "ATTRIBUTE_NAME_35",
+        "ATTRIBUTE_STANDARDIZED_VALUE_35",
+        "FREE FORM TEXT",
+        "MODEL / TYPE / CAT NO",
+        "MANUFACTURER_NAME_1",
+        "MANUFACTURER_PART_NO_1",
+        "MANUFACTURER_NAME_2",
+        "MANUFACTURER_PART_NO_2",
+        "MANUFACTURER_NAME_3",
+        "MANUFACTURER_PART_NO_3",
+        "MANUFACTURER_NAME_4",
+        "MANUFACTURER_PART_NO_4",
+        "DRAWING_NO",
+        "ITEM/POS NO",
+        "TAG NUMBER",
+        "UNUSED TEXT",
+        "Segment",
+        "Segment Title",
+        "Family",
+        "Family Title",
+        "Class",
+        "Class Title",
+        "Commodity",
+        "Commodity Title"
+];
+
+    function getUnspscClassification(noun, modifier, desc) {
+        const text = ((noun || '') + ' ' + (modifier || '') + ' ' + (desc || '')).toUpperCase();
+        if (text.includes('WRENCH')) return { segment: '27', segmentTitle: 'Tools and General Machinery', family: '2711', familyTitle: 'Hand Tools', classCode: '271117', classTitle: 'Wrenches and drivers', commodity: '27111715', commodityTitle: 'Torque wrenches' };
+        if (text.includes('VALVE')) return { segment: '40', segmentTitle: 'Distribution and Conditioning Systems', family: '4014', familyTitle: 'Fluid and gas distribution', classCode: '401416', classTitle: 'Valves', commodity: '40141602', commodityTitle: 'Industrial valves' };
+        if (text.includes('PUMP')) return { segment: '40', segmentTitle: 'Distribution and Conditioning Systems', family: '4015', familyTitle: 'Pumps and compressors', classCode: '401515', classTitle: 'Pumps', commodity: '40151503', commodityTitle: 'Centrifugal pumps' };
+        if (text.includes('BEARING')) return { segment: '31', segmentTitle: 'Manufacturing and Processing Machinery', family: '3117', familyTitle: 'Bearings and bushings and wheels and gears', classCode: '311715', classTitle: 'Bearings', commodity: '31171504', commodityTitle: 'Ball bearings' };
+        if (text.includes('ABRASIVE') || text.includes('EMERY')) return { segment: '31', segmentTitle: 'Manufacturing and Processing Machinery', family: '3119', familyTitle: 'Abrasives and abrasive media', classCode: '311915', classTitle: 'Abrasive papers', commodity: '31191501', commodityTitle: 'Emery paper' };
+        if (text.includes('HARNESS') || text.includes('ABSORBER') || text.includes('LANYARD')) return { segment: '46', segmentTitle: 'Defense and Safety Equipment', family: '4618', familyTitle: 'Personal safety and protection', classCode: '461823', classTitle: 'Fall protection equipment', commodity: '46182302', commodityTitle: 'Safety harnesses' };
+        if (text.includes('CHEMICAL') || text.includes('REAGENT') || text.includes('PHENANTHROLINE')) return { segment: '12', segmentTitle: 'Chemicals and Bio Chemicals and Gas Materials', family: '1235', familyTitle: 'Compounds and mixtures', classCode: '123521', classTitle: 'Laboratory chemicals', commodity: '12352104', commodityTitle: 'Organic reagents' };
+        if (text.includes('ELECTRICAL') || text.includes('PANEL') || text.includes('BREAKER') || text.includes('SWITCH')) return { segment: '39', segmentTitle: 'Electrical Systems and Lighting and Components', family: '3912', familyTitle: 'Electrical equipment and components', classCode: '391211', classTitle: 'Circuit protection devices', commodity: '39121103', commodityTitle: 'Distribution panels' };
+        if (text.includes('BOLT') || text.includes('SCREW') || text.includes('FASTENER') || text.includes('NUT')) return { segment: '31', segmentTitle: 'Manufacturing and Processing Machinery', family: '3116', familyTitle: 'Hardware', classCode: '311615', classTitle: 'Bolts', commodity: '31161501', commodityTitle: 'Hex bolts' };
+        if (text.includes('PIPE') || text.includes('TUBE') || text.includes('FITTING') || text.includes('FLANGE')) return { segment: '40', segmentTitle: 'Distribution and Conditioning Systems', family: '4017', familyTitle: 'Pipe and tube fittings', classCode: '401715', classTitle: 'Pipe fittings', commodity: '40171501', commodityTitle: 'Flanges and elbows' };
+        if (text.includes('GASKET') || text.includes('SEAL') || text.includes('O-RING')) return { segment: '31', segmentTitle: 'Manufacturing and Processing Machinery', family: '3140', familyTitle: 'Industrial seals and gaskets', classCode: '314016', classTitle: 'Gaskets', commodity: '31401601', commodityTitle: 'Spiral wound gaskets' };
+        if (text.includes('MOTOR')) return { segment: '26', segmentTitle: 'Power Generation and Distribution Machinery', family: '2610', familyTitle: 'Power sources', classCode: '261011', classTitle: 'Electric motors', commodity: '26101101', commodityTitle: 'AC Induction motors' };
+        if (text.includes('GAUGE') || text.includes('TRANSMITTER') || text.includes('METER') || text.includes('SENSOR')) return { segment: '41', segmentTitle: 'Laboratory and Measuring and Testing Equipment', family: '4111', familyTitle: 'Measuring and testing instruments', classCode: '411124', classTitle: 'Pressure meters and gauges', commodity: '41112401', commodityTitle: 'Pressure gauges' };
+        return { segment: '23', segmentTitle: 'Industrial Manufacturing and Processing Machinery', family: '2315', familyTitle: 'Manufacturing processes', classCode: '231535', classTitle: 'Industrial process supplies', commodity: '23153501', commodityTitle: 'General manufacturing materials' };
+    }
+
     function getTemplatesForRecord(item) {
+        const isOem = (item.oem === 'OEM');
+
+        // STRICT CORPORATE NON-OEM TEMPLATE (Strictly 106 attributes numbered 1-106)
+        if (!isOem) {
+            return {
+                template1: [...NON_OEM_TEMPLATE_ATTRIBUTES],
+                template2: [...NON_OEM_TEMPLATE_ATTRIBUTES]
+            };
+        }
         const normNoun = (item.noun && item.noun !== '--') ? item.noun.trim().toUpperCase() : 'MATERIAL';
         const normMod = (item.modifier && item.modifier !== '--') ? item.modifier.trim().toUpperCase() : 'STANDARD';
-        const isOem = (item.oem === 'OEM');
 
         // Specific standard engineering attributes for WRENCH | TORQUE (matching specification image)
         if (normNoun.includes('WRENCH') && (normMod.includes('TORQUE') || normMod === 'STANDARD' || normMod === '--')) {
@@ -6966,9 +7106,52 @@ function expandInlineAssign(sno, isDirectRender = false) {
         const mfrMatch = d.match(/(?:MFR|MAKE|BRAND)[:\s-]*([A-Z0-9&\s]+)/i);
         if (mfrMatch) {
             extracted['MANUFACTURER / BRAND'] = mfrMatch[1].trim();
-        } else if (isOem && dUpper.includes('SNAP-ON')) {
+        } else if (dUpper.includes('SNAP-ON')) {
             extracted['MANUFACTURER / BRAND'] = 'Snap-on';
         }
+
+        // NON OEM Corporate Template Attribute & UNSPSC Resolution
+        const unspsc = getUnspscClassification(noun, modifier, d);
+        extracted['Segment'] = unspsc.segment;
+        extracted['Segment Title'] = unspsc.segmentTitle;
+        extracted['Family'] = unspsc.family;
+        extracted['Family Title'] = unspsc.familyTitle;
+        extracted['Class'] = unspsc.classCode;
+        extracted['Class Title'] = unspsc.classTitle;
+        extracted['Commodity'] = unspsc.commodity;
+        extracted['Commodity Title'] = unspsc.commodityTitle;
+
+        // Model / Type / Part numbers / Free text
+        if (extracted['OEM PART NUMBER (P/N)']) {
+            extracted['MANUFACTURER_PART_NO_1'] = extracted['OEM PART NUMBER (P/N)'];
+        }
+        if (extracted['MANUFACTURER / BRAND']) {
+            extracted['MANUFACTURER_NAME_1'] = extracted['MANUFACTURER / BRAND'];
+        }
+        if (extracted['TYPE']) {
+            extracted['MODEL / TYPE / CAT NO'] = extracted['TYPE'];
+        } else if (extracted['CAPACITY'] || extracted['TORQUE RANGE']) {
+            extracted['MODEL / TYPE / CAT NO'] = extracted['CAPACITY'] || extracted['TORQUE RANGE'];
+        }
+        if (extracted['EQUIPMENT NAME / TAG NO.']) {
+            extracted['TAG NUMBER'] = extracted['EQUIPMENT NAME / TAG NO.'];
+        }
+        extracted['FREE FORM TEXT'] = d;
+        extracted['UNUSED TEXT'] = '--';
+
+        // Pair extracted technical properties into ATTRIBUTE_NAME_x and ATTRIBUTE_STANDARDIZED_VALUE_x
+        const technicalKeys = Object.keys(extracted).filter(k => 
+            !k.startsWith('ATTRIBUTE_') && 
+            !['Segment', 'Segment Title', 'Family', 'Family Title', 'Class', 'Class Title', 'Commodity', 'Commodity Title', 'FREE FORM TEXT', 'MODEL / TYPE / CAT NO', 'MANUFACTURER_NAME_1', 'MANUFACTURER_PART_NO_1', 'MANUFACTURER_NAME_2', 'MANUFACTURER_PART_NO_2', 'MANUFACTURER_NAME_3', 'MANUFACTURER_PART_NO_3', 'MANUFACTURER_NAME_4', 'MANUFACTURER_PART_NO_4', 'DRAWING_NO', 'ITEM/POS NO', 'TAG NUMBER', 'UNUSED TEXT'].includes(k)
+        );
+
+        technicalKeys.forEach((key, i) => {
+            if (i < 35) {
+                const idx = i + 1;
+                extracted['ATTRIBUTE_NAME_' + idx] = key;
+                extracted['ATTRIBUTE_STANDARDIZED_VALUE_' + idx] = extracted[key];
+            }
+        });
 
         return extracted;
     }
@@ -6985,6 +7168,36 @@ function expandInlineAssign(sno, isDirectRender = false) {
 
         if (!item.attributes) {
             item.attributes = {};
+        }
+
+        // For NON OEM records, pre-populate standard master fields if not explicitly edited
+        if (item.oem !== 'OEM') {
+            const siteVal = item.site || item.plant || item.Plant || 'TPPC';
+            const itemCodeVal = item.materialNumber || item.Material_Number || '';
+            const descVal = item.description || item.Discription || '';
+            const uomVal = item.uom || item.UOM || 'NO';
+            const catVal = item.priority || item.Priority_Item || 'Standard';
+            const nounStr = (item.noun && item.noun !== '--') ? item.noun : '';
+            const modStr = (item.modifier && item.modifier !== '--') ? item.modifier : '';
+            const nmStr = (nounStr || modStr) ? (nounStr + '|' + modStr) : '';
+            const sapShort = (nounStr && modStr) ? (nounStr + ',' + modStr) : (nounStr || descVal.slice(0, 40));
+            const sapLen = sapShort ? String(sapShort.length) : '0';
+            const sapLong = (nounStr && modStr) ? (nounStr + ', ' + modStr + ', ' + descVal) : descVal;
+
+            if (item.attributes['Sl No'] === undefined) item.attributes['Sl No'] = String(item.sno || '');
+            if (item.attributes['Site'] === undefined) item.attributes['Site'] = siteVal;
+            if (item.attributes['Item Code'] === undefined) item.attributes['Item Code'] = itemCodeVal;
+            if (item.attributes['Site|ItemCode'] === undefined) item.attributes['Site|ItemCode'] = siteVal + '|' + itemCodeVal;
+            if (item.attributes['EXISTING ITEM DESCRIPTION ( SHORT)'] === undefined) item.attributes['EXISTING ITEM DESCRIPTION ( SHORT)'] = descVal;
+            if (item.attributes['EXISTING ITEM DESCRIPTION ( LONG)'] === undefined) item.attributes['EXISTING ITEM DESCRIPTION ( LONG)'] = descVal;
+            if (item.attributes['UOM'] === undefined) item.attributes['UOM'] = uomVal;
+            if (item.attributes['ITEM CATEGORY'] === undefined) item.attributes['ITEM CATEGORY'] = catVal;
+            if (item.attributes['SHORT DESCRIPTION - SAP'] === undefined) item.attributes['SHORT DESCRIPTION - SAP'] = sapShort;
+            if (item.attributes['Len'] === undefined) item.attributes['Len'] = sapLen;
+            if (item.attributes['LONG DESCRIPTION - SAP'] === undefined) item.attributes['LONG DESCRIPTION - SAP'] = sapLong;
+            if (item.attributes['NOUN'] === undefined) item.attributes['NOUN'] = nounStr;
+            if (item.attributes['MODIFIER'] === undefined) item.attributes['MODIFIER'] = modStr;
+            if (item.attributes['NOUN|MODIFIER'] === undefined) item.attributes['NOUN|MODIFIER'] = nmStr;
         }
 
         const rowsHtml = item.currentAttributesList.map((attr, idx) => {
@@ -7036,7 +7249,7 @@ function expandInlineAssign(sno, isDirectRender = false) {
                                     <span class="prompt-noun-val">${escapeHtml(nounVal)}</span>
                                     <span class="prompt-pipe-sep">|</span>
                                     <span class="prompt-mod-text">Modifier:</span>
-                                    <span class="prompt-mod-val">|${escapeHtml(modVal)}</span>
+                                    <span class="prompt-mod-val">${escapeHtml(modVal)}</span>
                                 </div>
                                 <div class="prompt-header-right">
                                     <button type="button" class="btn-template-tab ${activeTpl === 1 ? 'active-template' : ''}" data-action="switch-template" data-sno="${item.sno}" data-tpl="1">Template 1</button>

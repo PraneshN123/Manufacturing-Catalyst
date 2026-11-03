@@ -1834,7 +1834,7 @@ th.col-actions, td.cell-actions { width: 260px; min-width: 260px; padding: 10px 
     border-radius: 6px;
     overflow-x: auto;
     overflow-y: auto !important;
-    max-height: 290px;
+    max-height: 380px;
     background: #ffffff;
 }
 
