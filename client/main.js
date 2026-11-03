@@ -7305,6 +7305,13 @@ function expandInlineAssign(sno, isDirectRender = false) {
             if (item.attributes['NOUN|MODIFIER'] === undefined) item.attributes['NOUN|MODIFIER'] = nmStr;
         }
 
+        // Progressive stages:
+        // By default: isAnalysed = false -> ONLY Analyse button and API Extracted column
+        // After analyse: isAnalysed = true, isValidated = false -> Validate button and Validated column
+        // After validate: isValidated = true -> Manual fix inputs and Submit button
+        const isAnalysed = !!item.isAnalysed;
+        const isValidated = !!item.isValidated;
+
         const rowsHtml = item.currentAttributesList.map((attr, idx) => {
             const isCustom = typeof attr === 'object' && attr.isCustom;
             const attrDisplayName = isCustom ? attr.name : attr;
@@ -7313,27 +7320,37 @@ function expandInlineAssign(sno, isDirectRender = false) {
             const valVal = getAttrValueCaseInsensitive(item.validatedAttributes, attrDisplayName) || '';
             const manualVal = getAttrValueCaseInsensitive(item.manualAttributes, attrDisplayName) || '';
 
-            return `
-                <tr data-attr-idx="${idx}" data-attr-name="${escapeHtml(attrDisplayName)}">
-                    <td class="col-th-num">
-                        <div class="prompt-num-cell-wrapper">
-                            <button type="button" class="btn-attr-delete" data-action="delete-prompt-attr" data-sno="${item.sno}" data-idx="${idx}" title="Remove this attribute">
-                                <span class="minus-bar"></span>
-                            </button>
-                            <span class="prompt-row-idx">${idx + 1}</span>
-                        </div>
-                    </td>
-                    <td class="prompt-attr-cell">
-                        ${isCustom ? `
-                            <input type="text" class="prompt-attr-cell-input" data-sno="${item.sno}" data-idx="${idx}" value="${escapeHtml(attrDisplayName)}" placeholder="ATTRIBUTE NAME" />
-                        ` : escapeHtml(attrDisplayName)}
-                    </td>
-                    <td class="cell-val-api">
-                        <span class="prompt-val-text-api">${escapeHtml(apiVal || '--')}</span>
-                    </td>
+            let rowCells = `
+                <td class="col-th-num">
+                    <div class="prompt-num-cell-wrapper">
+                        <button type="button" class="btn-attr-delete" data-action="delete-prompt-attr" data-sno="${item.sno}" data-idx="${idx}" title="Remove this attribute">
+                            <span class="minus-bar"></span>
+                        </button>
+                        <span class="prompt-row-idx">${idx + 1}</span>
+                    </div>
+                </td>
+                <td class="prompt-attr-cell">
+                    ${isCustom ? `
+                        <input type="text" class="prompt-attr-cell-input" data-sno="${item.sno}" data-idx="${idx}" value="${escapeHtml(attrDisplayName)}" placeholder="ATTRIBUTE NAME" />
+                    ` : escapeHtml(attrDisplayName)}
+                </td>
+                <td class="cell-val-api">
+                    <span class="prompt-val-text-api">${escapeHtml(apiVal || '--')}</span>
+                </td>
+            `;
+
+            // Validated column appears after Analyse
+            if (isAnalysed) {
+                rowCells += `
                     <td class="cell-val-validated">
                         <span class="prompt-val-text-validated">${escapeHtml(valVal || '--')}</span>
                     </td>
+                `;
+            }
+
+            // Manual column appears after Validate for user manual fixes
+            if (isValidated) {
+                rowCells += `
                     <td class="cell-val-manual">
                         <input type="text" 
                                class="prompt-manual-input prompt-val-input" 
@@ -7342,6 +7359,12 @@ function expandInlineAssign(sno, isDirectRender = false) {
                                value="${escapeHtml(manualVal)}" 
                                placeholder="Enter value..." />
                     </td>
+                `;
+            }
+
+            return `
+                <tr data-attr-idx="${idx}" data-attr-name="${escapeHtml(attrDisplayName)}">
+                    ${rowCells}
                 </tr>
             `;
         }).join('');
@@ -7368,24 +7391,34 @@ function expandInlineAssign(sno, isDirectRender = false) {
                                 <div class="prompt-header-right">
                                     <button type="button" class="btn-template-tab ${activeTpl === 1 ? 'active-template' : ''}" data-action="switch-template" data-sno="${item.sno}" data-tpl="1">Template 1</button>
                                     <button type="button" class="btn-template-tab ${activeTpl === 2 ? 'active-template' : ''}" data-action="switch-template" data-sno="${item.sno}" data-tpl="2">Template 2</button>
-                                    <button type="button" class="btn-prompt-analyse" data-action="analyse-prompt" data-sno="${item.sno}" title="Step 1: Extract API Attributes">
+                                    
+                                    <!-- Step 1: By default ONLY Analyse shows -->
+                                    <button type="button" class="btn-prompt-analyse ${isAnalysed ? 'btn-prompt-reanalyse' : ''}" data-action="analyse-prompt" data-sno="${item.sno}" title="${isAnalysed ? 'Re-Analyse Specification' : 'Step 1: Analyse Specification'}">
                                         <svg class="sparkle-icon" viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
                                             <path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z"/>
                                         </svg>
-                                        <span>${item.isAnalysed ? 'Re-Analyse' : 'Analyse'}</span>
+                                        <span>${isAnalysed ? 'Re-Analyse' : 'Analyse'}</span>
                                     </button>
-                                    <button type="button" class="btn-prompt-validate" data-action="validate-prompt" data-sno="${item.sno}" title="Step 2: Validate &amp; Standardize Attributes">
-                                        <svg class="validate-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                            <polyline points="20 6 9 17 4 12"></polyline>
-                                        </svg>
-                                        <span>Validate</span>
-                                    </button>
-                                    <button type="button" class="btn-prompt-submit" data-action="submit-prompt" data-sno="${item.sno}" title="Step 3/Final: Submit Specification">
-                                        <svg class="submit-icon" viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
-                                            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-                                        </svg>
-                                        <span>Submit</span>
-                                    </button>
+
+                                    <!-- Step 2: Validate shows only after Analyse -->
+                                    ${isAnalysed ? `
+                                        <button type="button" class="btn-prompt-validate" data-action="validate-prompt" data-sno="${item.sno}" title="Step 2: Validate &amp; Standardize Attributes">
+                                            <svg class="validate-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="20 6 9 17 4 12"></polyline>
+                                            </svg>
+                                            <span>Validate</span>
+                                        </button>
+                                    ` : ''}
+
+                                    <!-- Step 3: Submit shows only after Validate -->
+                                    ${isValidated ? `
+                                        <button type="button" class="btn-prompt-submit" data-action="submit-prompt" data-sno="${item.sno}" title="Submit Final Specification">
+                                            <svg class="submit-icon" viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
+                                                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                                            </svg>
+                                            <span>Submit</span>
+                                        </button>
+                                    ` : ''}
                                 </div>
                             </div>
 
@@ -7396,8 +7429,8 @@ function expandInlineAssign(sno, isDirectRender = false) {
                                             <th class="col-th-num">#</th>
                                             <th class="col-th-attr">ATTRIBUTE</th>
                                             <th class="col-th-api">API EXTRACTED VALUE</th>
-                                            <th class="col-th-validated">VALIDATED VALUE</th>
-                                            <th class="col-th-manual">MANUAL VALUE</th>
+                                            ${isAnalysed ? '<th class="col-th-validated">VALIDATED VALUE</th>' : ''}
+                                            ${isValidated ? '<th class="col-th-manual">MANUAL VALUE</th>' : ''}
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -7623,43 +7656,25 @@ function expandInlineAssign(sno, isDirectRender = false) {
         item.isAnalysed = true;
         item.isValidated = false;
 
-        // Update DOM: Col 3 (API EXTRACTED) gets values & flashes; Col 4 gets '--'; Col 5 gets empty placeholder
+        // Progress to Step 2: Refresh drawer to show VALIDATED VALUE column and Validate button
+        refreshPromptDrawerDom(sno);
+
+        // Flash all extracted API values in the newly rendered table
         const drawerTr = document.getElementById(`expanded-prompt-row-${sno}`);
         let count = 0;
         if (drawerTr) {
-            const rows = drawerTr.querySelectorAll('tr[data-attr-name]');
-            rows.forEach(tr => {
-                const attrName = tr.getAttribute('data-attr-name');
-                const apiVal = getAttrValueCaseInsensitive(item.apiExtractedAttributes, attrName);
-
-                const apiEl = tr.querySelector('.prompt-val-text-api');
-                if (apiEl) {
-                    apiEl.textContent = apiVal || '--';
-                    if (apiVal) {
-                        apiEl.classList.add('extracted-flash');
-                        setTimeout(() => apiEl.classList.remove('extracted-flash'), 1200);
-                        count++;
-                    }
-                }
-
-                const valEl = tr.querySelector('.prompt-val-text-validated');
-                if (valEl) {
-                    valEl.textContent = '--';
-                }
-
-                const manInput = tr.querySelector('.prompt-manual-input');
-                if (manInput) {
-                    manInput.value = '';
-                    manInput.placeholder = 'Enter value...';
+            const apiEls = drawerTr.querySelectorAll('.prompt-val-text-api');
+            apiEls.forEach(el => {
+                if (el.textContent && el.textContent !== '--') {
+                    el.classList.add('extracted-flash');
+                    setTimeout(() => el.classList.remove('extracted-flash'), 1200);
+                    count++;
                 }
             });
-
-            const analyseBtnSpan = drawerTr.querySelector('.btn-prompt-analyse span');
-            if (analyseBtnSpan) analyseBtnSpan.textContent = 'Re-Analyse';
         }
 
         state.hasUnsavedChanges = true;
-        showToast(`✦ Step 1 Complete: Extracted ${count} attributes into API Extracted Value. Now click Validate.`, 'info');
+        showToast(`✦ Step 1 Complete: Extracted ${count} attributes. Click Validate to proceed to Step 2.`, 'info');
     }
 
     const handleReAnalysePromptAttributes = handleAnalysePromptAttributes;
@@ -7699,38 +7714,33 @@ function expandInlineAssign(sno, isDirectRender = false) {
 
         item.isValidated = true;
 
-        // Update DOM: Col 4 (VALIDATED) and Col 5 (MANUAL) get populated with flash glow!
+        // Progress to Step 3: Refresh drawer to show MANUAL VALUE column and Submit button
+        refreshPromptDrawerDom(sno);
+
+        // Flash validated cells and manual inputs
         const drawerTr = document.getElementById(`expanded-prompt-row-${sno}`);
         let count = 0;
         if (drawerTr) {
-            const rows = drawerTr.querySelectorAll('tr[data-attr-name]');
-            rows.forEach(tr => {
-                const attrName = tr.getAttribute('data-attr-name');
-                const valVal = getAttrValueCaseInsensitive(item.validatedAttributes, attrName);
-                const manVal = getAttrValueCaseInsensitive(item.manualAttributes, attrName);
-
-                const valEl = tr.querySelector('.prompt-val-text-validated');
-                if (valEl) {
-                    valEl.textContent = valVal || '--';
-                    if (valVal) {
-                        valEl.classList.add('extracted-flash');
-                        setTimeout(() => valEl.classList.remove('extracted-flash'), 1200);
-                        count++;
-                    }
+            const valEls = drawerTr.querySelectorAll('.prompt-val-text-validated');
+            valEls.forEach(el => {
+                if (el.textContent && el.textContent !== '--') {
+                    el.classList.add('extracted-flash');
+                    setTimeout(() => el.classList.remove('extracted-flash'), 1200);
+                    count++;
                 }
-
-                const manInput = tr.querySelector('.prompt-manual-input');
-                if (manInput && manVal) {
-                    manInput.value = manVal;
-                    manInput.classList.add('extracted-flash');
-                    setTimeout(() => manInput.classList.remove('extracted-flash'), 1200);
+            });
+            const manInputs = drawerTr.querySelectorAll('.prompt-manual-input');
+            manInputs.forEach(input => {
+                if (input.value) {
+                    input.classList.add('extracted-flash');
+                    setTimeout(() => input.classList.remove('extracted-flash'), 1200);
                 }
             });
         }
 
         state.hasUnsavedChanges = true;
         updateStatsCounters();
-        showToast(`✓ Step 2 Complete: Validated ${count} attributes. You can now adjust Manual Values.`, 'success');
+        showToast(`✓ Step 2 Complete: Validated ${count} attributes. You can now make Manual Fixes and Submit.`, 'success');
     }
 
     // STAGE 4: Final Submit (saves manual and validated values)
