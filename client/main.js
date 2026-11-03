@@ -6791,6 +6791,39 @@ function expandInlineAssign(sno, isDirectRender = false) {
     // 7.2. INLINE ATTRIBUTE TEMPLATE DRAWER (MATCHING USER SPECIFICATION)
     // ==========================================================================
 
+    // STRICT CORPORATE OEM TEMPLATE (Strictly 29 attributes numbered 1-29)
+    const OEM_TEMPLATE_ATTRIBUTES = [
+        "Sl No",
+        "SITE",
+        "EXISTING ITEM CODE",
+        "SITE|ITEMCODE",
+        "EXISTING ITEM DESCRIPTION ( SHORT)",
+        "EXISTING ITEM DESCRIPTION ( LONG)",
+        "UOM",
+        "ITEM CATEGORY",
+        "SHORT DESCRIPTION - SAP",
+        "LENGTH(SHORT)",
+        "LONG DESCRIPTION - SAP",
+        "Noun",
+        "Modifier",
+        "PART NAME",
+        "TYPE/DESIGN/OPERATION",
+        "MANUFACTURER PART NUMBER",
+        "ITEM/POSITION NUMBER ( ONLY IF DRAWING NUMBER IS MENTIONED)",
+        "DRAWING NUMBER WITH REV NO. (ONLY IF APPLICABLE)",
+        "SIZE",
+        "MATERIAL",
+        "RATING",
+        "MAIN EQUIPMENT NAME",
+        "MAIN EQUIPMENT MANUFACTURER",
+        "MAIN EQUIPMENT MODEL",
+        "MAIN EQUIPMENT SERIAL NUMBER",
+        "ASSEMBLY/APPLICATION",
+        "PART MANUFACTURER NAME",
+        "ADDITIONAL INFORMATION/FREE TEXT",
+        "MAIN EQPT TAG NUMBER"
+    ];
+
     // STRICT CORPORATE NON-OEM TEMPLATE (Strictly 106 attributes numbered 1-106)
     const NON_OEM_TEMPLATE_ATTRIBUTES = [
         "Sl No",
@@ -6934,91 +6967,19 @@ function expandInlineAssign(sno, isDirectRender = false) {
     function getTemplatesForRecord(item) {
         const isOem = (item.oem === 'OEM');
 
-        // STRICT CORPORATE NON-OEM TEMPLATE (Strictly 106 attributes numbered 1-106)
-        if (!isOem) {
-            return {
-                template1: [...NON_OEM_TEMPLATE_ATTRIBUTES],
-                template2: [...NON_OEM_TEMPLATE_ATTRIBUTES]
-            };
-        }
-        const normNoun = (item.noun && item.noun !== '--') ? item.noun.trim().toUpperCase() : 'MATERIAL';
-        const normMod = (item.modifier && item.modifier !== '--') ? item.modifier.trim().toUpperCase() : 'STANDARD';
-
-        // Specific standard engineering attributes for WRENCH | TORQUE (matching specification image)
-        if (normNoun.includes('WRENCH') && (normMod.includes('TORQUE') || normMod === 'STANDARD' || normMod === '--')) {
-            if (isOem) {
-                return {
-                    template1: ['MANUFACTURER / BRAND', 'OEM PART NUMBER (P/N)', 'MODEL / DRAWING NUMBER', 'EQUIPMENT NAME / TAG NO.', 'DRIVE SIZE', 'TORQUE RANGE', 'OVERALL LENGTH', 'MATERIAL'],
-                    template2: ['FINISH', 'ACCURACY', 'TYPE', 'HANDLE TYPE', 'DESIGN STANDARD', 'GRADUATION', 'HEAD TYPE', 'CONSTRUCTION']
-                };
-            }
-            return {
-                template1: [
-                    'DRIVE SIZE',
-                    'TORQUE RANGE',
-                    'OVERALL LENGTH',
-                    'MATERIAL',
-                    'FINISH',
-                    'ACCURACY',
-                    'TYPE',
-                    'HANDLE TYPE'
-                ],
-                template2: [
-                    'DESIGN STANDARD',
-                    'GRADUATION',
-                    'HEAD TYPE',
-                    'CONSTRUCTION',
-                    'HANDLE MATERIAL',
-                    'CALIBRATION CERTIFICATE',
-                    'RATCHET TEETH COUNT',
-                    'SCALE TYPE'
-                ]
-            };
-        }
-
-        // Dynamic taxonomy resolution for all other items
-        const nounData = TAXONOMY_DATA[normNoun] || {};
-        let attrs = [];
-        if (nounData.modifiers && normMod !== '--') {
-            const m = nounData.modifiers.find(x => x.name.toUpperCase() === normMod);
-            if (m && m.attributes && m.attributes.length > 0) attrs = [...m.attributes];
-        }
-        if (attrs.length === 0 && nounData.allAttributes && nounData.allAttributes.length > 0) {
-            attrs = [...nounData.allAttributes];
-        }
-
-        // Standard engineering fallbacks
-        if (attrs.length === 0) {
-            if (normNoun.includes('CHEMICAL')) {
-                attrs = ['PURITY / ASSAY', 'CAS NUMBER', 'FORM OF SUPPLY', 'APPLICATION / GRADE', 'PACKAGING SIZE', 'SCIENTIFIC NAME', 'FORMULA', 'FLASH POINT', 'DENSITY', 'STORAGE CONDITION'];
-            } else if (normNoun.includes('PANEL') || normNoun.includes('ELECTRICAL')) {
-                attrs = ['VOLTAGE RATING', 'CURRENT RATING', 'PHASE / FREQUENCY', 'INGRESS PROTECTION (IP)', 'ENCLOSURE TYPE', 'SHORT CIRCUIT RATING', 'FEEDER CAPACITY', 'MOUNTING TYPE'];
-            } else if (normNoun.includes('GRAVEL') || normNoun.includes('AGGREGATE')) {
-                attrs = ['GRAIN SIZE / DIA', 'AGGREGATE TYPE', 'MATERIAL SPECIFICATION', 'GRADATION STANDARD', 'PURITY / WASH', 'BULK DENSITY', 'MOISTURE CONTENT', 'DESIGN STANDARD'];
-            } else if (normNoun.includes('VALVE')) {
-                attrs = ['NOMINAL SIZE', 'PRESSURE CLASS', 'BODY MATERIAL', 'TRIM MATERIAL', 'END CONNECTION', 'DESIGN STANDARD', 'SEAT MATERIAL', 'FLOW COEFFICIENT (CV)'];
-            } else if (normNoun.includes('PUMP')) {
-                attrs = ['FLOW RATE', 'DISCHARGE HEAD', 'IMPELLER DIAMETER', 'CASING MATERIAL', 'MOTOR RATING', 'SHAFT SEAL', 'POWER SUPPLY', 'SPEED (RPM)'];
-            } else if (normNoun.includes('BEARING')) {
-                attrs = ['BORE DIAMETER (ID)', 'OUTER DIAMETER (OD)', 'WIDTH', 'CLEARANCE CLASS', 'CAGE MATERIAL', 'DESIGN STANDARD', 'SEAL TYPE', 'LUBRICATION'];
-            } else {
-                attrs = ['SIZE / DIMENSION', 'MATERIAL SPECIFICATION', 'CAPACITY / RATING', 'DESIGN STANDARD', 'FINISH', 'GRADE', 'TYPE', 'MANUFACTURING PROCESS'];
-            }
-        }
-
+        // STRICT CORPORATE OEM TEMPLATE (Strictly 29 attributes numbered 1-29)
         if (isOem) {
-            const oemPrefix = ['MANUFACTURER / BRAND', 'OEM PART NUMBER (P/N)', 'MODEL / DRAWING NUMBER', 'EQUIPMENT NAME / TAG NO.'];
-            const remaining = attrs.filter(a => !oemPrefix.includes(a));
             return {
-                template1: [...oemPrefix, ...remaining.slice(0, 4)],
-                template2: [...remaining.slice(4, 12)]
-            };
-        } else {
-            return {
-                template1: attrs.slice(0, 8),
-                template2: attrs.length > 8 ? attrs.slice(8, 16) : ['DESIGN STANDARD', 'FINISH', 'MATERIAL GRADE', 'CERTIFICATION', 'INSPECTION STANDARD', 'OPERATING TEMP', 'TEST PRESSURE', 'COATING']
+                template1: [...OEM_TEMPLATE_ATTRIBUTES],
+                template2: [...OEM_TEMPLATE_ATTRIBUTES]
             };
         }
+
+        // STRICT CORPORATE NON-OEM TEMPLATE (Strictly 106 attributes numbered 1-106)
+        return {
+            template1: [...NON_OEM_TEMPLATE_ATTRIBUTES],
+            template2: [...NON_OEM_TEMPLATE_ATTRIBUTES]
+        };
     }
 
     function extractAttributesFromDesc(desc, noun, modifier, oemStatus) {
@@ -7234,6 +7195,26 @@ function expandInlineAssign(sno, isDirectRender = false) {
         }
         extracted['FREE FORM TEXT'] = d;
         extracted['UNUSED TEXT'] = '--';
+        // OEM Template specific extractions
+        extracted['PART NAME'] = (noun && modifier && modifier !== '--' && modifier !== 'STANDARD') 
+            ? `${noun} ${modifier}` 
+            : (noun || d.split(',')[0].trim());
+        extracted['TYPE/DESIGN/OPERATION'] = extracted['TYPE'] || extracted['DESIGN STANDARD'] || (dUpper.includes('INSULATED') ? 'INSULATED' : (dUpper.includes('TORQUE') ? 'TORQUE' : '--'));
+        extracted['MANUFACTURER PART NUMBER'] = extracted['OEM PART NUMBER (P/N)'] || extracted['MANUFACTURER_PART_NO_1'] || '--';
+        extracted['ITEM/POSITION NUMBER ( ONLY IF DRAWING NUMBER IS MENTIONED)'] = extracted['ITEM/POS NO'] || '--';
+        extracted['DRAWING NUMBER WITH REV NO. (ONLY IF APPLICABLE)'] = extracted['DRAWING_NO'] || '--';
+        extracted['SIZE'] = extracted['DRIVE SIZE'] || extracted['SIZE / DIMENSION'] || extracted['OVERALL LENGTH'] || '--';
+        extracted['MATERIAL'] = extracted['MATERIAL'] || (dUpper.includes('CR-V') ? 'CHROME VANADIUM' : (dUpper.includes('SS') ? 'STAINLESS STEEL' : '--'));
+        extracted['RATING'] = extracted['TORQUE RANGE'] || extracted['VOLTAGE RATING'] || extracted['POWER RATING'] || extracted['CURRENT RATING'] || '--';
+        extracted['MAIN EQUIPMENT NAME'] = extracted['EQUIPMENT NAME / TAG NO.'] || (d.match(/FOR\s+([A-Z0-9\s_-]+)/i) ? `FOR ${d.match(/FOR\s+([A-Z0-9\s_-]+)/i)[1].trim()}` : '--');
+        extracted['MAIN EQUIPMENT MANUFACTURER'] = extracted['MANUFACTURER_NAME_1'] || extracted['MANUFACTURER / BRAND'] || '--';
+        extracted['MAIN EQUIPMENT MODEL'] = extracted['MODEL / TYPE / CAT NO'] || '--';
+        extracted['MAIN EQUIPMENT SERIAL NUMBER'] = '--';
+        extracted['ASSEMBLY/APPLICATION'] = extracted['APPLICATION'] || '--';
+        extracted['PART MANUFACTURER NAME'] = extracted['MANUFACTURER_NAME_1'] || extracted['MANUFACTURER / BRAND'] || '--';
+        extracted['ADDITIONAL INFORMATION/FREE TEXT'] = d;
+        extracted['MAIN EQPT TAG NUMBER'] = extracted['TAG NUMBER'] || '--';
+
 
         // Pair extracted technical properties into ATTRIBUTE_NAME_x and ATTRIBUTE_STANDARDIZED_VALUE_x
         const technicalKeys = Object.keys(extracted).filter(k => 
@@ -7275,20 +7256,34 @@ function expandInlineAssign(sno, isDirectRender = false) {
         // After that: Validate populates Validated Value and initializes Manual Value
         // And then: User manually edits or reviews Manual Value
 
-        // For NON OEM records, pre-populate standard master fields if not explicitly edited
-        if (item.oem !== 'OEM') {
-            const siteVal = item.site || item.plant || item.Plant || 'TPPC';
-            const itemCodeVal = item.materialNumber || item.Material_Number || '';
-            const descVal = item.description || item.Discription || '';
-            const uomVal = item.uom || item.UOM || 'NO';
-            const catVal = item.priority || item.Priority_Item || 'Standard';
-            const nounStr = (item.noun && item.noun !== '--') ? item.noun : '';
-            const modStr = (item.modifier && item.modifier !== '--') ? item.modifier : '';
-            const nmStr = (nounStr || modStr) ? (nounStr + '|' + modStr) : '';
-            const sapShort = (nounStr && modStr) ? (nounStr + ',' + modStr) : (nounStr || descVal.slice(0, 40));
-            const sapLen = sapShort ? String(sapShort.length) : '0';
-            const sapLong = (nounStr && modStr) ? (nounStr + ', ' + modStr + ', ' + descVal) : descVal;
+        // For OEM vs NON OEM records, pre-populate standard master fields if not explicitly edited
+        const siteVal = item.site || item.plant || item.Plant || 'TPPC';
+        const itemCodeVal = item.materialNumber || item.Material_Number || '';
+        const descVal = item.description || item.Discription || '';
+        const uomVal = item.uom || item.UOM || 'NO';
+        const catVal = item.priority || item.Priority_Item || 'Standard';
+        const nounStr = (item.noun && item.noun !== '--') ? item.noun : '';
+        const modStr = (item.modifier && item.modifier !== '--') ? item.modifier : '';
+        const sapShort = (nounStr && modStr) ? (nounStr + ',' + modStr) : (nounStr || descVal.slice(0, 40));
+        const sapLen = sapShort ? String(sapShort.length) : '0';
+        const sapLong = (nounStr && modStr) ? (nounStr + ', ' + modStr + ', ' + descVal) : descVal;
 
+        if (item.oem === 'OEM') {
+            if (item.attributes['Sl No'] === undefined) item.attributes['Sl No'] = String(item.sno || '');
+            if (item.attributes['SITE'] === undefined) item.attributes['SITE'] = siteVal;
+            if (item.attributes['EXISTING ITEM CODE'] === undefined) item.attributes['EXISTING ITEM CODE'] = itemCodeVal;
+            if (item.attributes['SITE|ITEMCODE'] === undefined) item.attributes['SITE|ITEMCODE'] = siteVal + '|' + itemCodeVal;
+            if (item.attributes['EXISTING ITEM DESCRIPTION ( SHORT)'] === undefined) item.attributes['EXISTING ITEM DESCRIPTION ( SHORT)'] = descVal;
+            if (item.attributes['EXISTING ITEM DESCRIPTION ( LONG)'] === undefined) item.attributes['EXISTING ITEM DESCRIPTION ( LONG)'] = descVal;
+            if (item.attributes['UOM'] === undefined) item.attributes['UOM'] = uomVal;
+            if (item.attributes['ITEM CATEGORY'] === undefined) item.attributes['ITEM CATEGORY'] = catVal;
+            if (item.attributes['SHORT DESCRIPTION - SAP'] === undefined) item.attributes['SHORT DESCRIPTION - SAP'] = sapShort;
+            if (item.attributes['LENGTH(SHORT)'] === undefined) item.attributes['LENGTH(SHORT)'] = sapLen;
+            if (item.attributes['LONG DESCRIPTION - SAP'] === undefined) item.attributes['LONG DESCRIPTION - SAP'] = sapLong;
+            if (item.attributes['Noun'] === undefined) item.attributes['Noun'] = nounStr;
+            if (item.attributes['Modifier'] === undefined) item.attributes['Modifier'] = modStr;
+        } else {
+            const nmStr = (nounStr || modStr) ? (nounStr + '|' + modStr) : '';
             if (item.attributes['Sl No'] === undefined) item.attributes['Sl No'] = String(item.sno || '');
             if (item.attributes['Site'] === undefined) item.attributes['Site'] = siteVal;
             if (item.attributes['Item Code'] === undefined) item.attributes['Item Code'] = itemCodeVal;
@@ -7637,12 +7632,54 @@ function expandInlineAssign(sno, isDirectRender = false) {
         item.validatedAttributes = {};
         item.manualAttributes = {};
 
-        // Row 5: SHORT description (raw extraction)
         const shortRaw = desc.split(',')[0].trim();
-        item.apiExtractedAttributes['EXISTING ITEM DESCRIPTION ( SHORT)'] = shortRaw;
+        if (oemStatus === 'OEM') {
+            const siteVal = item.site || item.plant || item.Plant || 'TPPC';
+            const itemCodeVal = item.materialNumber || item.Material_Number || '';
+            const uomVal = item.uom || item.UOM || 'NO';
+            const catVal = item.priority || item.Priority_Item || 'Standard';
+            const sapShort = (normNoun && normMod && normMod !== '--') ? (normNoun + ',' + normMod) : (normNoun || shortRaw);
+            const sapLen = String(sapShort.length);
+            const sapLong = (normNoun && normMod && normMod !== '--') ? (normNoun + ', ' + normMod + ', ' + desc) : desc;
 
-        // Row 6: LONG description (raw extraction)
-        item.apiExtractedAttributes['EXISTING ITEM DESCRIPTION ( LONG)'] = desc;
+            item.apiExtractedAttributes['Sl No'] = String(item.sno || '');
+            item.apiExtractedAttributes['SITE'] = siteVal;
+            item.apiExtractedAttributes['EXISTING ITEM CODE'] = itemCodeVal;
+            item.apiExtractedAttributes['SITE|ITEMCODE'] = siteVal + '|' + itemCodeVal;
+            item.apiExtractedAttributes['EXISTING ITEM DESCRIPTION ( SHORT)'] = shortRaw;
+            item.apiExtractedAttributes['EXISTING ITEM DESCRIPTION ( LONG)'] = desc;
+            item.apiExtractedAttributes['UOM'] = uomVal;
+            item.apiExtractedAttributes['ITEM CATEGORY'] = catVal;
+            item.apiExtractedAttributes['SHORT DESCRIPTION - SAP'] = sapShort;
+            item.apiExtractedAttributes['LENGTH(SHORT)'] = sapLen;
+            item.apiExtractedAttributes['LONG DESCRIPTION - SAP'] = sapLong;
+            item.apiExtractedAttributes['Noun'] = normNoun;
+            item.apiExtractedAttributes['Modifier'] = normMod;
+        } else {
+            const siteVal = item.site || item.plant || item.Plant || 'TPPC';
+            const itemCodeVal = item.materialNumber || item.Material_Number || '';
+            const uomVal = item.uom || item.UOM || 'NO';
+            const catVal = item.priority || item.Priority_Item || 'Standard';
+            const nmStr = (normNoun || normMod) ? (normNoun + '|' + normMod) : '';
+            const sapShort = (normNoun && normMod && normMod !== '--') ? (normNoun + ',' + normMod) : (normNoun || shortRaw);
+            const sapLen = String(sapShort.length);
+            const sapLong = (normNoun && normMod && normMod !== '--') ? (normNoun + ', ' + normMod + ', ' + desc) : desc;
+
+            item.apiExtractedAttributes['Sl No'] = String(item.sno || '');
+            item.apiExtractedAttributes['Site'] = siteVal;
+            item.apiExtractedAttributes['Item Code'] = itemCodeVal;
+            item.apiExtractedAttributes['Site|ItemCode'] = siteVal + '|' + itemCodeVal;
+            item.apiExtractedAttributes['EXISTING ITEM DESCRIPTION ( SHORT)'] = shortRaw;
+            item.apiExtractedAttributes['EXISTING ITEM DESCRIPTION ( LONG)'] = desc;
+            item.apiExtractedAttributes['UOM'] = uomVal;
+            item.apiExtractedAttributes['ITEM CATEGORY'] = catVal;
+            item.apiExtractedAttributes['SHORT DESCRIPTION - SAP'] = sapShort;
+            item.apiExtractedAttributes['Len'] = sapLen;
+            item.apiExtractedAttributes['LONG DESCRIPTION - SAP'] = sapLong;
+            item.apiExtractedAttributes['NOUN'] = normNoun;
+            item.apiExtractedAttributes['MODIFIER'] = normMod;
+            item.apiExtractedAttributes['NOUN|MODIFIER'] = nmStr;
+        }
 
         // Merge raw extracted attributes into apiExtractedAttributes ONLY
         for (const [k, v] of Object.entries(extracted)) {
@@ -8061,6 +8098,7 @@ function expandInlineAssign(sno, isDirectRender = false) {
 
             const newVal = e.target.value;
             item.oem = newVal;
+            delete item.currentAttributesList;
             state.hasUnsavedChanges = true;
 
             // Dynamically update class on the select element
@@ -8070,6 +8108,7 @@ function expandInlineAssign(sno, isDirectRender = false) {
             else e.target.classList.add('oem-badge-pending');
 
             updateStatsCounters();
+            refreshPromptDrawerDom(sno);
             showToast(`S.No #${sno} OEM status set to "${newVal}"`, 'success');
             return;
         }
