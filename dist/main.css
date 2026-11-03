@@ -1803,7 +1803,7 @@ th.col-actions, td.cell-actions { width: 260px; min-width: 260px; padding: 10px 
 }
 
 /* ✨ Analyse button */
-.btn-prompt-analyse {
+.btn-prompt-analyse, .btn-prompt-validate {
     font-size: 12px;
     font-weight: 600;
     padding: 6px 14px;
@@ -1818,13 +1818,13 @@ th.col-actions, td.cell-actions { width: 260px; min-width: 260px; padding: 10px 
     gap: 6px;
 }
 
-.btn-prompt-analyse:hover {
+.btn-prompt-analyse:hover, .btn-prompt-validate:hover {
     background: #dbeafe;
     border-color: #93c5fd;
     transform: translateY(-1px);
 }
 
-.sparkle-icon {
+.sparkle-icon, .validate-icon {
     flex-shrink: 0;
 }
 

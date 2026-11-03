@@ -6901,6 +6901,18 @@ function expandInlineAssign(sno, isDirectRender = false) {
         "Commodity Title"
 ];
 
+    function getAttrValueCaseInsensitive(obj, key) {
+        if (!obj || !key) return undefined;
+        if (obj[key] !== undefined) return obj[key];
+        const upperKey = String(key).trim().toUpperCase();
+        for (const [k, v] of Object.entries(obj)) {
+            if (String(k).trim().toUpperCase() === upperKey) {
+                return v;
+            }
+        }
+        return undefined;
+    }
+
     function getUnspscClassification(noun, modifier, desc) {
         const text = ((noun || '') + ' ' + (modifier || '') + ' ' + (desc || '')).toUpperCase();
         if (text.includes('WRENCH')) return { segment: '27', segmentTitle: 'Tools and General Machinery', family: '2711', familyTitle: 'Hand Tools', classCode: '271117', classTitle: 'Wrenches and drivers', commodity: '27111715', commodityTitle: 'Torque wrenches' };
@@ -7014,6 +7026,80 @@ function expandInlineAssign(sno, isDirectRender = false) {
         const dUpper = d.toUpperCase();
         const extracted = {};
 
+        // 0. Primary description assignments
+        extracted['EXISTING ITEM DESCRIPTION ( SHORT)'] = d;
+        extracted['EXISTING ITEM DESCRIPTION ( LONG)'] = d;
+        extracted['FREE FORM TEXT'] = d;
+
+        // 0.1 Known Brands & Manufacturers
+        const knownBrands = [
+            'SIEMENS', 'DELL', 'HP', 'SARTORIUS', 'BROTHER', 'SNAP-ON', 'ABB', 'SCHNEIDER',
+            'SKF', 'FAG', '3M', 'BOSCH', 'FLUKE', 'MITUTOYO', 'STANLEY', 'PROTO', 'HAZET',
+            'STAHLWILLE', 'GEDORE', 'BAHCO', 'CATERPILLAR', 'KOMATSU', 'HONEYWELL', 'EMERSON',
+            'YOKOGAWA', 'FISHER', 'ROSEMOUNT', 'SWAGELOK', 'PARKER', 'FESTO', 'SMC', 'DANFOSS',
+            'SIGMA-ALDRICH', 'MERCK', 'LOCTITE'
+        ];
+        for (const b of knownBrands) {
+            const reg = new RegExp('\\b' + b + '\\b', 'i');
+            if (reg.test(d)) {
+                extracted['MANUFACTURER_NAME_1'] = b;
+                extracted['MANUFACTURER / BRAND'] = b;
+                break;
+            }
+        }
+
+        // 0.2 Part numbers & codes (e.g. 3KM47-30-1YA00, MK-300-50:1, IN52560001-B, PT-E550WVP)
+        const codeMatch = d.match(/(?:P\/N|PN|PT\.NO\.|PT\s*NO|PART\s*(?:NO|NUMBER)?|CAT\s*(?:NO)?|REF)[:\s#-]*([A-Z0-9._\/-]+)/i) ||
+                           d.match(/\b([0-9]{1,2}[A-Z]{1,3}[0-9]{1,4}[A-Z0-9-]*|[A-Z]{2,4}[0-9]{2,4}[A-Z0-9-]*|MK-[0-9]+-[0-9]+:[0-9]+)\b/i);
+        if (codeMatch && codeMatch[1].length >= 3) {
+            const codeVal = codeMatch[1].trim();
+            extracted['MANUFACTURER_PART_NO_1'] = codeVal;
+            extracted['OEM PART NUMBER (P/N)'] = codeVal;
+            extracted['MODEL / TYPE / CAT NO'] = codeVal;
+        }
+
+        // 0.3 Power, Wattage & Current
+        const wattMatch = d.match(/\b(\d+(?:\.\d+)?\s*(?:W|KW|MW|WATTS?|WATT))\b/i);
+        if (wattMatch) extracted['POWER RATING'] = wattMatch[1].trim().toUpperCase();
+        const ampMatch = d.match(/\b(\d+(?:\.\d+)?\s*(?:A|AMP|AMPS|KA))\b/i);
+        if (ampMatch) extracted['CURRENT RATING'] = ampMatch[1].trim().toUpperCase();
+        const voltMatch = d.match(/\b(\d+(?:\.\d+)?\s*(?:V|KV|VOLTS?|VAC|VDC))\b/i);
+        if (voltMatch) extracted['VOLTAGE RATING'] = voltMatch[1].trim().toUpperCase();
+
+        // 0.4 Abrasive grit sizes & materials
+        const gritMatch = d.match(/\b(?:GRIT\s*)?(\d{2,4})\b/);
+        if (gritMatch && (dUpper.includes('EMERY') || dUpper.includes('ABRASIVE') || dUpper.includes('PAPER') || dUpper.includes('SANDPAPER'))) {
+            extracted['GRIT SIZE'] = gritMatch[1] + ' Grit';
+            extracted['FORM OF SUPPLY'] = 'Sheet';
+            extracted['MATERIAL'] = 'Silicon Carbide / Corundum';
+            extracted['APPLICATION'] = 'Abrasive Surface Finishing';
+        }
+
+        // 0.5 Fall protection harness specifics
+        if (dUpper.includes('HARNESS') || dUpper.includes('SHOCK ABSORBER')) {
+            extracted['TYPE'] = 'Full Body Fall Protection Harness';
+            extracted['STANDARD'] = 'EN 361 / OSHA / ANSI Z359';
+            extracted['APPLICATION'] = 'Work at Height Fall Arrest';
+            if (dUpper.includes('SHOCK')) extracted['ENERGY ABSORBER'] = 'Integrated Tear-Webbing Shock Absorber';
+        }
+
+        // 0.6 Switchgear / SDF specifics
+        if (dUpper.includes('SDF') || dUpper.includes('DRAWOUT') || dUpper.includes('SWITCH')) {
+            extracted['TYPE'] = 'Switch Disconnector Fuse (SDF) Drawout Unit';
+            extracted['STANDARD'] = 'IEC 60947-3 / IS 13947';
+            if (dUpper.includes('DRAWOUT')) extracted['MOUNTING TYPE'] = 'Drawout';
+        }
+
+        // 0.7 Power Adapters & Couplings
+        if (dUpper.includes('ADAPTER') || dUpper.includes('ADAOTER') || dUpper.includes('ADAPTOR')) {
+            if (dUpper.includes('POWER') || dUpper.includes('90W') || dUpper.includes('LAPTOP') || dUpper.includes('AC/DC')) {
+                extracted['TYPE'] = 'AC/DC Regulated Power Supply Adapter';
+                extracted['INPUT VOLTAGE'] = '100-240V AC 50/60Hz';
+            } else if (dUpper.includes('PVC') || dUpper.includes('COUPLING')) {
+                extracted['TYPE'] = 'Socket Coupling / Pipe Adaptor';
+            }
+        }
+
         // 1. Numerical ranges, torque, capacities
         const torqueMatch = d.match(/(\d+[\s-]*\d*\s*(?:NM|N-M|FT-LB|IN-LB))/i);
         if (torqueMatch) {
@@ -7043,21 +7129,21 @@ function expandInlineAssign(sno, isDirectRender = false) {
             extracted['LENGTH'] = lenMatch[1].trim();
         }
 
-        // 4. Electrical ratings
-        const voltMatch = d.match(/(\d+\s*(?:V|KV|VOLT|VOLTS))/i);
-        if (voltMatch) {
-            extracted['VOLTAGE RATING'] = voltMatch[1].trim();
+        // 4. Electrical ratings fallback
+        if (!extracted['VOLTAGE RATING']) {
+            const vM = d.match(/(\d+\s*(?:V|KV|VOLT|VOLTS))/i);
+            if (vM) extracted['VOLTAGE RATING'] = vM[1].trim().toUpperCase();
         }
-        const ampMatch = d.match(/(\d+\s*(?:A|AMP|AMPS|KA))/i);
-        if (ampMatch) {
-            extracted['CURRENT RATING'] = ampMatch[1].trim();
+        if (!extracted['CURRENT RATING']) {
+            const aM = d.match(/(\d+\s*(?:A|AMP|AMPS|KA))/i);
+            if (aM) extracted['CURRENT RATING'] = aM[1].trim().toUpperCase();
         }
 
         // 5. Materials & Finish
         if (dUpper.includes('CR-V') || dUpper.includes('CHROME VANADIUM')) {
             extracted['MATERIAL'] = 'Chrome Vanadium';
             extracted['FINISH'] = 'Chrome Plated';
-        } else if (dUpper.includes('SS') || dUpper.includes('STAINLESS')) {
+        } else if (/\b(?:SS|SS304|SS316|STAINLESS)\b/i.test(d)) {
             extracted['MATERIAL'] = 'Stainless Steel 316';
             extracted['FINISH'] = 'Satin / Passivated';
         } else if (dUpper.includes('PVC')) {
@@ -7120,6 +7206,16 @@ function expandInlineAssign(sno, isDirectRender = false) {
         extracted['Class Title'] = unspsc.classTitle;
         extracted['Commodity'] = unspsc.commodity;
         extracted['Commodity Title'] = unspsc.commodityTitle;
+
+        // Assign both title case and uppercase keys for foolproof matching
+        extracted['SEGMENT'] = unspsc.segment;
+        extracted['SEGMENT TITLE'] = unspsc.segmentTitle;
+        extracted['FAMILY'] = unspsc.family;
+        extracted['FAMILY TITLE'] = unspsc.familyTitle;
+        extracted['CLASS'] = unspsc.classCode;
+        extracted['CLASS TITLE'] = unspsc.classTitle;
+        extracted['COMMODITY'] = unspsc.commodity;
+        extracted['COMMODITY TITLE'] = unspsc.commodityTitle;
 
         // Model / Type / Part numbers / Free text
         if (extracted['OEM PART NUMBER (P/N)']) {
@@ -7252,13 +7348,12 @@ function expandInlineAssign(sno, isDirectRender = false) {
                                     <span class="prompt-mod-val">${escapeHtml(modVal)}</span>
                                 </div>
                                 <div class="prompt-header-right">
-                                    <button type="button" class="btn-template-tab ${activeTpl === 1 ? 'active-template' : ''}" data-action="switch-template" data-sno="${item.sno}" data-tpl="1">Template 1</button>
-                                    <button type="button" class="btn-template-tab ${activeTpl === 2 ? 'active-template' : ''}" data-action="switch-template" data-sno="${item.sno}" data-tpl="2">Template 2</button>
-                                    <button type="button" class="btn-prompt-analyse" data-action="analyse-prompt" data-sno="${item.sno}" title="AI Analysis &amp; Extraction">
-                                        <svg class="sparkle-icon" viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
-                                            <path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z"/>
+                                    <button type="button" class="btn-template-tab active-template" data-action="switch-template" data-sno="${item.sno}" data-tpl="1">Template 1</button>
+                                    <button type="button" class="btn-prompt-analyse btn-prompt-validate" data-action="validate-prompt" data-sno="${item.sno}" title="Validate &amp; Assign Specification Attributes">
+                                        <svg class="validate-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                            <polyline points="20 6 9 17 4 12"></polyline>
                                         </svg>
-                                        <span>Analyse</span>
+                                        <span>Validate</span>
                                     </button>
                                 </div>
                             </div>
@@ -7453,39 +7548,93 @@ function expandInlineAssign(sno, isDirectRender = false) {
         showToast(`Switched to Template ${tplNum}`, 'info');
     }
 
-    function handleAnalysePromptAttributes(sno) {
+    function handleValidatePromptAttributes(sno) {
         const item = state.allRecords.find(r => r.sno === sno);
         if (!item) return;
 
-        const normNoun = (item.noun && item.noun !== '--') ? item.noun : 'MATERIAL';
-        const normMod = (item.modifier && item.modifier !== '--') ? item.modifier : 'STANDARD';
-        const oemStatus = item.oem || '--';
+        const desc = (item.description || item.Discription || '').trim();
+        const normNoun = (item.noun && item.noun !== '--' && item.noun !== 'PENDING') 
+            ? item.noun 
+            : (classifyWithLibraryTaxonomy(desc).noun || 'MATERIAL');
+        const normMod = (item.modifier && item.modifier !== '--' && item.modifier !== 'PENDING') 
+            ? item.modifier 
+            : (classifyWithLibraryTaxonomy(desc).modifier || 'STANDARD');
+        const oemStatus = item.oem || 'NON OEM';
 
-        const extracted = extractAttributesFromDesc(item.description, normNoun, normMod, oemStatus);
+        // Deep extraction of all attributes from description
+        const extracted = extractAttributesFromDesc(desc, normNoun, normMod, oemStatus);
         if (!item.attributes) item.attributes = {};
 
-        // Merge extracted values
+        // Strictly assign description and standard fields
+        const siteVal = item.site || item.plant || 'TPPC';
+        const itemCodeVal = item.materialNumber || item.Material_Number || '';
+        const uomVal = item.uom || item.UOM || 'NO';
+        const catVal = item.priority || item.Priority_Item || 'Standard';
+        const nmStr = normNoun + '|' + normMod;
+        const sapShort = normNoun + ',' + normMod + (extracted.ATTRIBUTE_STANDARDIZED_VALUE_1 ? (',' + extracted.ATTRIBUTE_STANDARDIZED_VALUE_1) : '');
+        const sapLong = normNoun + ', ' + normMod + ', ' + desc;
+
+        item.attributes['Sl No'] = String(item.sno || '');
+        item.attributes['Site'] = siteVal;
+        item.attributes['Item Code'] = itemCodeVal;
+        item.attributes['Site|ItemCode'] = siteVal + '|' + itemCodeVal;
+        item.attributes['EXISTING ITEM DESCRIPTION ( SHORT)'] = desc;
+        item.attributes['EXISTING ITEM DESCRIPTION ( LONG)'] = desc;
+        item.attributes['UOM'] = uomVal;
+        item.attributes['ITEM CATEGORY'] = catVal;
+        item.attributes['SHORT DESCRIPTION - SAP'] = sapShort;
+        item.attributes['Len'] = String(sapShort.length);
+        item.attributes['LONG DESCRIPTION - SAP'] = sapLong;
+        item.attributes['NOUN'] = normNoun;
+        item.attributes['MODIFIER'] = normMod;
+        item.attributes['NOUN|MODIFIER'] = nmStr;
+        item.attributes['FREE FORM TEXT'] = desc;
+        item.attributes['UNUSED TEXT'] = extracted['UNUSED TEXT'] || 'None';
+        item.attributes['TAG NUMBER'] = extracted['TAG NUMBER'] || 'N/A';
+
+        // Merge extracted technical properties, UNSPSC, manufacturer, parts, etc.
         Object.assign(item.attributes, extracted);
 
-        // Flash inputs in the active drawer
+        // Update drawer DOM: assign every matching input live with glow animation
         const drawerTr = document.getElementById(`expanded-prompt-row-${sno}`);
         let count = 0;
         if (drawerTr) {
+            // Update drawer header noun & modifier
+            const nounEl = drawerTr.querySelector('.prompt-noun-val');
+            if (nounEl) nounEl.textContent = normNoun;
+            const modEl = drawerTr.querySelector('.prompt-mod-val');
+            if (modEl) modEl.textContent = normMod;
+
             const inputs = drawerTr.querySelectorAll('.prompt-val-input');
             inputs.forEach(input => {
                 const attrName = input.getAttribute('data-attr');
-                if (extracted[attrName]) {
-                    input.value = extracted[attrName];
+                const matchVal = getAttrValueCaseInsensitive(item.attributes, attrName);
+                if (matchVal !== undefined && matchVal !== null && matchVal !== '') {
+                    input.value = matchVal;
                     input.classList.add('extracted-flash');
-                    setTimeout(() => input.classList.remove('extracted-flash'), 1000);
+                    setTimeout(() => input.classList.remove('extracted-flash'), 1200);
                     count++;
                 }
             });
         }
 
+        // Update parent row in main table
+        const parentTr = document.getElementById(`row-${sno}`);
+        if (parentTr) {
+            const nounCell = parentTr.querySelector('.cell-noun');
+            if (nounCell && normNoun !== '--') nounCell.textContent = normNoun;
+            const modCell = parentTr.querySelector('.cell-modifier');
+            if (modCell && normMod !== '--') modCell.textContent = normMod;
+            const nmCell = parentTr.querySelector('.cell-noun-modifier');
+            if (nmCell && normNoun !== '--' && normMod !== '--') nmCell.textContent = normNoun + ' | ' + normMod;
+        }
+
         state.hasUnsavedChanges = true;
-        showToast(`✨ AI Analysis complete: Extracted ${count} attribute values`, 'success');
+        updateStatsCounters();
+        showToast(`✓ Validated & assigned description attributes for #${sno} (${count} attributes assigned)`, 'success');
     }
+
+    const handleAnalysePromptAttributes = handleValidatePromptAttributes;
 
     function handleDeletePromptAttribute(sno, idx) {
         const item = state.allRecords.find(r => r.sno === sno);
@@ -7641,11 +7790,11 @@ function expandInlineAssign(sno, isDirectRender = false) {
             return;
         }
 
-        // 8. Prompt Drawer: Analyse button
-        const analysePromptBtn = e.target.closest('[data-action="analyse-prompt"]');
-        if (analysePromptBtn) {
-            const sno = parseInt(analysePromptBtn.getAttribute('data-sno'), 10);
-            handleAnalysePromptAttributes(sno);
+        // 8. Prompt Drawer: Validate button (strictly changed from analyse)
+        const validatePromptBtn = e.target.closest('[data-action="validate-prompt"], [data-action="analyse-prompt"]');
+        if (validatePromptBtn) {
+            const sno = parseInt(validatePromptBtn.getAttribute('data-sno'), 10);
+            handleValidatePromptAttributes(sno);
             return;
         }
 
