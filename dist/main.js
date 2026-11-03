@@ -4493,328 +4493,14 @@
     // 7B. AUTOMATED LIBRARY TABLE ASSIGNMENT ENGINE & LOADING SCREEN
     // ==========================================================================
     function classifyWithLibraryTaxonomy(description) {
-        const d = (description || '').trim().toUpperCase();
-
-        // 1. Specific Equipment & Mechanical Precedence
-        if (d.includes('GEAR BOX') || d.includes('GEARBOX')) {
-            return { noun: 'GEARBOX', modifier: 'REDUCTION', oem: d.includes('MW') || d.includes('STG') ? 'OEM' : 'NON OEM' };
-        }
-        if (d.includes('DRIVE SHAFT') || (d.includes('SHAFT') && d.includes('COUPLING'))) {
-            return { noun: 'SHAFT', modifier: 'DRIVE', oem: d.includes('STG') ? 'OEM' : 'NON OEM' };
-        }
-        if (d.includes('CHAIN') && (d.includes('TROLLY') || d.includes('MONO RAIL') || d.includes('ROLLER') || d.includes('LINK'))) {
-            return { noun: 'CHAIN', modifier: 'ROLLER', oem: 'NON OEM' };
-        }
-        if (d.includes('PHENANTHROLINE') || d.includes('ARSENIC TEST') || (d.includes('BOT') && d.includes('GM')) || d.includes('ACID') || d.includes('REAGENT') || d.includes('CHEMICAL') || d.includes('SOLUTION') || d.includes('ZINC FILLINGS')) {
-            return { noun: 'CHEMICAL', modifier: d.includes('MONOHYDRATE') ? 'MONOHYDRATE' : (d.includes('ARSENIC') ? 'ARSENIC' : 'REAGENT'), oem: 'NON OEM' };
-        }
-        if (d.includes('GRAVEL') || d.includes('AGGREGATE') || d.includes('SAND') || d.includes('CRUSHED STONE')) {
-            return { noun: 'GRAVEL', modifier: d.includes('RIVER') ? 'RIVER' : 'AGGREGATE', oem: 'NON OEM' };
-        }
-        if (d.includes('PCC') || d.includes('MCC') || d.includes('PANEL') || d.includes('SWITCHBOARD') || d.includes('SWITCHGEAR')) {
-            return { noun: 'PANEL', modifier: d.includes('PCC') ? 'PCC' : (d.includes('MCC') ? 'MCC' : 'CONTROL'), oem: d.includes('GSSP') ? 'OEM' : 'NON OEM' };
-        }
-        if (d.includes('PVC') && (d.includes('MALE') || d.includes('FEMALE') || d.includes('INSTAN') || d.includes('COUPLING') || d.includes('UNION'))) {
-            return { noun: 'COUPLING', modifier: 'PVC', oem: 'NON OEM' };
-        }
-        if (d.includes('FIELDSET') || d.includes('ATOM') || d.includes('TRANSMITTER') || d.includes('SENSOR')) {
-            return { noun: 'TRANSMITTER', modifier: 'ELECTRONIC', oem: 'OEM' };
-        }
-        if (d.includes('AVR') || d.includes('VOLTAGE REGULATOR') || d.includes('REGULATOR')) {
-            return { noun: 'REGULATOR', modifier: 'VOLTAGE', oem: 'OEM' };
-        }
-        if (d.includes('COPPER FLEXIBLE') || (d.includes('FLEXIBLE') && d.includes('TRAFO')) || d.includes('BUSBAR') || d.includes('JUMPER')) {
-            return { noun: 'CONNECTOR', modifier: 'FLEXIBLE', oem: 'NON OEM' };
-        }
-        if (d.includes('CROSS TRAINER') || d.includes('TRAINER') || d.includes('FITNESS')) {
-            return { noun: 'EQUIPMENT', modifier: 'TRAINER', oem: 'NON OEM' };
-        }
-        if (d.startsWith('CT-') || (d.startsWith('CT ') && (d.includes('CL-') || d.includes('VA') || d.includes('DIFFERENTIAL') || d.includes('KV')))) {
-            return { noun: 'TRANSFORMER', modifier: 'CURRENT', oem: (d.includes('D.G') || d.includes('STG')) ? 'OEM' : 'NON OEM' };
-        }
-        if (d.includes('CUT OUT') || d.includes('CUTOUT') || d.includes('FUSE') || d.includes('ISOLATOR')) {
-            return { noun: 'SWITCH', modifier: 'CUTOUT', oem: 'NON OEM' };
-        }
-        if (d.includes('DOXY') || d.includes('TABLET') || d.includes('MEDICINE') || d.includes('PHARMA')) {
-            return { noun: 'CHEMICAL', modifier: 'PHARMACEUTICAL', oem: 'NON OEM' };
-        }
-        if (d.includes('DT OLD BME') || d.includes('FAT OLD BME') || d.includes('BME')) {
-            return { noun: 'EQUIPMENT', modifier: 'TESTING', oem: 'OEM' };
-        }
-        if (d.includes('PANEER') || d.includes('DAIRY') || d.includes('FOOD')) {
-            return { noun: 'CONSUMABLE', modifier: 'DAIRY', oem: 'NON OEM' };
-        }
-        if (d.includes('RJ 11') || d.includes('RJ11')) {
-            return { noun: 'CONNECTOR', modifier: 'TELEPHONE', oem: 'NON OEM' };
-        }
-        if (d.includes('RJ 45') || d.includes('RJ45')) {
-            return { noun: 'CONNECTOR', modifier: 'MODULAR', oem: 'NON OEM' };
-        }
-        if (d.includes('ZLD PLC') || d.includes('TERMINAL BASE') || d.includes('1734-TB') || d.includes('PLC')) {
-            return { noun: 'MODULE', modifier: 'TERMINAL BASE', oem: 'OEM' };
-        }
-        if (d.includes('Z-UNIT') || d.includes('NEEDLE HOLDER')) {
-            return { noun: 'ASSEMBLY', modifier: 'MOTORIZED', oem: 'OEM' };
-        }
-
-        // 2. Standard Industry MRO Taxonomy Master
-        if (d.includes('VALVE')) {
-            let m = 'CONTROL';
-            if (d.includes('BALL')) m = 'BALL';
-            else if (d.includes('GATE')) m = 'GATE';
-            else if (d.includes('GLOBE')) m = 'GLOBE';
-            else if (d.includes('CHECK')) m = 'CHECK';
-            else if (d.includes('BUTTERFLY')) m = 'BUTTERFLY';
-            return { noun: 'VALVE', modifier: m, oem: d.includes('PT.NO') || d.includes('MODEL') ? 'OEM' : 'NON OEM' };
-        }
-        if (d.includes('PUMP')) {
-            let m = 'PROCESS';
-            if (d.includes('CENTRIFUGAL')) m = 'CENTRIFUGAL';
-            else if (d.includes('DOSING')) m = 'DOSING';
-            else if (d.includes('SLURRY')) m = 'SLURRY';
-            else if (d.includes('SUBMERSIBLE')) m = 'SUBMERSIBLE';
-            return { noun: 'PUMP', modifier: m, oem: d.includes('MODEL') || d.includes('PT.NO') ? 'OEM' : 'NON OEM' };
-        }
-        if (d.includes('BEARING')) {
-            let m = 'RADIAL';
-            if (d.includes('ROLLER')) m = 'ROLLER';
-            else if (d.includes('BALL')) m = 'BALL';
-            else if (d.includes('PILLOW')) m = 'PILLOW BLOCK';
-            return { noun: 'BEARING', modifier: m, oem: d.includes('SKF') || d.includes('FAG') || d.includes('TIMKEN') ? 'OEM' : 'NON OEM' };
-        }
-        if (d.includes('WRENCH')) {
-            let m = 'STANDARD';
-            if (d.includes('TORQUE')) m = 'TORQUE';
-            else if (d.includes('OPEN END')) m = 'OPEN END';
-            else if (d.includes('HAMMERING') || d.includes('SLOGGING')) m = 'HAMMERING';
-            else if (d.includes('ADJUSTABLE')) m = 'ADJUSTABLE';
-            return { noun: 'WRENCH', modifier: m, oem: 'NON OEM' };
-        }
-        if (d.includes('PIPE') || d.includes('TUBING') || d.includes('TUBE')) {
-            return { noun: 'PIPE', modifier: d.includes('SEAMLESS') ? 'SEAMLESS' : 'STEEL', oem: 'NON OEM' };
-        }
-        if (d.includes('GASKET') || d.includes('O-RING') || d.includes('SEAL')) {
-            return { noun: 'GASKET', modifier: d.includes('SPIRAL') ? 'SPIRAL WOUND' : 'NON METALLIC', oem: 'NON OEM' };
-        }
-        if (d.includes('BOLT') || d.includes('NUT') || d.includes('SCREW') || d.includes('FASTENER') || d.includes('STUD')) {
-            return { noun: 'FASTENER', modifier: d.includes('HEX') ? 'HEX HEAD' : 'STUD', oem: 'NON OEM' };
-        }
-        if (d.includes('MOTOR')) {
-            return { noun: 'MOTOR', modifier: d.includes('INDUCTION') ? 'INDUCTION' : 'ELECTRIC', oem: d.includes('KW') || d.includes('HP') ? 'OEM' : 'NON OEM' };
-        }
-        if (d.includes('FILTER')) {
-            return { noun: 'FILTER', modifier: d.includes('AIR') ? 'AIR' : (d.includes('OIL') ? 'OIL' : 'CARTRIDGE'), oem: 'NON OEM' };
-        }
-        if (d.includes('CABLE') || d.includes('WIRE')) {
-            return { noun: 'CABLE', modifier: d.includes('POWER') ? 'POWER' : 'CONTROL', oem: 'NON OEM' };
-        }
-        if (d.includes('FLANGE')) {
-            return { noun: 'FLANGE', modifier: d.includes('WELD') ? 'WELD NECK' : 'BLIND', oem: 'NON OEM' };
-        }
-        if (d.includes('FITTING') || d.includes('ELBOW') || d.includes('TEE') || d.includes('REDUCER')) {
-            return { noun: 'FITTING', modifier: 'PIPE', oem: 'NON OEM' };
-        }
-        if (d.includes('GAUGE') || d.includes('METER') || d.includes('INDICATOR')) {
-            return { noun: 'GAUGE', modifier: d.includes('PRESSURE') ? 'PRESSURE' : 'TEMPERATURE', oem: 'NON OEM' };
-        }
-        if (d.includes('ADAPTER') || d.includes('ADAPTOR')) {
-            return { noun: 'ADAPTER', modifier: 'ELECTRICAL', oem: 'OEM' };
-        }
-        if (d.includes('HOSE')) {
-            return { noun: 'HOSE', modifier: 'HYDRAULIC', oem: 'NON OEM' };
-        }
-
-        // 3. Fallback based on Library Taxonomy Master Keys
-        for (const taxNoun of Object.keys(TAXONOMY_DATA)) {
-            if (taxNoun.length > 2 && d.includes(taxNoun)) {
-                let m = 'STANDARD';
-                const mods = TAXONOMY_DATA[taxNoun]?.modifiers || [];
-                for (const modObj of mods) {
-                    if (modObj.name && modObj.name.length > 2 && d.includes(modObj.name)) {
-                        m = modObj.name;
-                        break;
-                    }
-                }
-                const isOemMatch = /\b(PT\.NO|PART|MODEL|OEM|STG|GSSP|ATOM|MW|KW|TRAFO|KV|CL-|VA)\b/i.test(d);
-                return { noun: taxNoun, modifier: m, oem: isOemMatch ? 'OEM' : 'NON OEM' };
-            }
-        }
-
-        // 4. Structural Word Analysis Fallback
-        const words = d.replace(/[^A-Z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length > 2 && !/^\d+$/.test(w));
-        const n = words.length > 0 ? words[0] : 'MATERIAL';
-        const m = words.length > 1 ? words[1] : 'STANDARD';
-        const isOemSpec = /\b(PT\.NO|PART|MODEL|OEM|STG|GSSP|ATOM|MW|KW|TRAFO|KV|CL-|VA)\b/i.test(d);
-
+        const res = analyzeRecordWithAI({ description });
         return {
-            noun: n,
-            modifier: m,
-            oem: isOemSpec ? 'OEM' : 'NON OEM'
+            noun: res.noun,
+            modifier: res.modifier,
+            oem: res.oem
         };
     }
 
-    async function executeLibraryBatchAssignment() {
-        if (!state.allRecords || state.allRecords.length === 0) {
-            showToast('No User Data records available to assign. Load Catalyst data first.', 'info');
-            return;
-        }
-
-        const totalRecords = state.allRecords.length;
-
-        // Reset and display loading screen overlay
-        if (el.assignmentLoadingOverlay) {
-            el.assignmentLoadingOverlay.style.display = 'flex';
-            requestAnimationFrame(() => {
-                el.assignmentLoadingOverlay.classList.add('active');
-                el.assignmentLoadingOverlay.setAttribute('aria-hidden', 'false');
-            });
-        }
-
-        if (el.loadingCardTitle) el.loadingCardTitle.textContent = 'Standardizing User Data with Library Master';
-        if (el.loadingCardSubtitle) el.loadingCardSubtitle.textContent = `Deep matching 12,841 library taxonomy vectors across ${totalRecords.toLocaleString()} catalog items`;
-        if (el.loadingPercentText) el.loadingPercentText.textContent = '0%';
-        if (el.loadingProgressFill) el.loadingProgressFill.style.width = '0%';
-        if (el.loadingRecordCounter) el.loadingRecordCounter.textContent = `0 / ${totalRecords.toLocaleString()} Records`;
-
-        // Reset pipeline steps
-        if (el.pipeStep1) { el.pipeStep1.classList.add('active'); el.pipeStep1.classList.remove('completed'); }
-        if (el.pipeStep2) { el.pipeStep2.classList.remove('active', 'completed'); }
-        if (el.pipeStep3) { el.pipeStep3.classList.remove('active', 'completed'); }
-
-        if (el.loadingSpinnerRing) el.loadingSpinnerRing.classList.remove('completed');
-        if (el.loadingIconCenter) {
-            el.loadingIconCenter.classList.remove('completed');
-            el.loadingIconCenter.innerHTML = `
-                <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
-                    <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
-                </svg>
-            `;
-        }
-
-        const updateStatusText = (txt) => {
-            if (el.loadingStatusText) el.loadingStatusText.textContent = txt;
-            else if (el.loadingStatusBadge) {
-                const textNode = el.loadingStatusBadge.querySelector('#loadingStatusText');
-                if (textNode) textNode.textContent = txt;
-                else el.loadingStatusBadge.textContent = txt;
-            }
-        };
-
-        updateStatusText('Phase 1/3: Vector Indexing 12,841 Library Master Taxonomy Records...');
-
-        // Perform actual assignment strictly across all records using Library Master
-        state.allRecords.forEach(item => {
-            const fallbackClass = classifyWithLibraryTaxonomy(item.description);
-            const assignedNoun = item.assignedNoun || fallbackClass.noun;
-            const assignedMod = item.assignedModifier || fallbackClass.modifier;
-            const assignedOem = item.assignedOem || fallbackClass.oem;
-
-            item.noun = assignedNoun;
-            item.modifier = assignedMod;
-            item.oem = assignedOem;
-            item.nounModifier = (assignedMod && assignedMod !== '--')
-                ? `${assignedNoun} | ${assignedMod}`
-                : assignedNoun;
-            item.nmStatus = 'ASSIGNED';
-
-            if (!item.attributes || !item.attributes.capacity) {
-                item.attributes = {
-                    capacity: item.capacity || `NM Count: ${item.nmCount || 1}`,
-                    drive: item.drive || 'Batch: BATCH-01',
-                    material: item.material || (item.oem === 'OEM' ? 'OEM Specification' : 'Standard Master'),
-                    standard: item.standard || 'ISO 9001 / DIN'
-                };
-            }
-        });
-
-        // 60FPS Continuous Animation Driver over 2300ms
-        const totalDuration = 2300;
-        const startTime = performance.now();
-        const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-
-        await new Promise(resolve => {
-            function step(now) {
-                const elapsed = now - startTime;
-                const progress = Math.min(1, elapsed / totalDuration);
-                const eased = ease(progress);
-
-                const currentPct = Math.min(100, Math.round(eased * 100));
-                const currentCount = Math.min(totalRecords, Math.round(eased * totalRecords));
-
-                if (el.loadingPercentText) el.loadingPercentText.textContent = `${currentPct}%`;
-                if (el.loadingProgressFill) el.loadingProgressFill.style.width = `${currentPct}%`;
-                if (el.loadingRecordCounter) el.loadingRecordCounter.textContent = `${currentCount.toLocaleString()} / ${totalRecords.toLocaleString()} Records`;
-
-                // 3-Phase pipeline state transitions
-                if (eased < 0.35) {
-                    if (el.pipeStep1) { el.pipeStep1.classList.add('active'); el.pipeStep1.classList.remove('completed'); }
-                    if (el.pipeStep2) { el.pipeStep2.classList.remove('active', 'completed'); }
-                    if (el.pipeStep3) { el.pipeStep3.classList.remove('active', 'completed'); }
-                    updateStatusText('Phase 1/3: Vector Indexing 12,841 Library Master Taxonomy Records...');
-                } else if (eased < 0.72) {
-                    if (el.pipeStep1) { el.pipeStep1.classList.remove('active'); el.pipeStep1.classList.add('completed'); }
-                    if (el.pipeStep2) { el.pipeStep2.classList.add('active'); el.pipeStep2.classList.remove('completed'); }
-                    if (el.pipeStep3) { el.pipeStep3.classList.remove('active', 'completed'); }
-                    updateStatusText('Phase 2/3: Neural Probability Matching & Multi-Attribute Scoring...');
-                } else if (eased < 1) {
-                    if (el.pipeStep1) { el.pipeStep1.classList.add('completed'); }
-                    if (el.pipeStep2) { el.pipeStep2.classList.remove('active'); el.pipeStep2.classList.add('completed'); }
-                    if (el.pipeStep3) { el.pipeStep3.classList.add('active'); el.pipeStep3.classList.remove('completed'); }
-                    updateStatusText('Phase 3/3: Standardizing OEM, Noun & Modifier across All Records...');
-                }
-
-                if (progress < 1) {
-                    requestAnimationFrame(step);
-                } else {
-                    resolve();
-                }
-            }
-            requestAnimationFrame(step);
-        });
-
-        // 100% Completed State
-        if (el.loadingPercentText) el.loadingPercentText.textContent = '100%';
-        if (el.loadingProgressFill) el.loadingProgressFill.style.width = '100%';
-        if (el.loadingRecordCounter) el.loadingRecordCounter.textContent = `${totalRecords.toLocaleString()} / ${totalRecords.toLocaleString()} Records Completed`;
-
-        if (el.pipeStep1) { el.pipeStep1.classList.remove('active'); el.pipeStep1.classList.add('completed'); }
-        if (el.pipeStep2) { el.pipeStep2.classList.remove('active'); el.pipeStep2.classList.add('completed'); }
-        if (el.pipeStep3) { el.pipeStep3.classList.remove('active'); el.pipeStep3.classList.add('completed'); }
-        updateStatusText('✓ Standardized All Records with 100% High Confidence!');
-
-        // Green checkmark completion pop
-        if (el.loadingSpinnerRing) el.loadingSpinnerRing.classList.add('completed');
-        if (el.loadingIconCenter) {
-            el.loadingIconCenter.classList.add('completed');
-            el.loadingIconCenter.innerHTML = `
-                <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="20 6 9 17 4 12"></polyline>
-                </svg>
-            `;
-        }
-
-        // Mark session as having unsaved modifications
-        state.hasUnsavedChanges = true;
-
-        // Apply filters & re-render the table with the new badges
-        applyFilters();
-
-        // 600ms pause to let user appreciate the completion badge
-        await new Promise(r => setTimeout(r, 600));
-
-        // Smoothly dismiss loading overlay
-        if (el.assignmentLoadingOverlay) {
-            el.assignmentLoadingOverlay.classList.remove('active');
-            el.assignmentLoadingOverlay.setAttribute('aria-hidden', 'true');
-            setTimeout(() => {
-                el.assignmentLoadingOverlay.style.display = 'none';
-            }, 350);
-        }
-
-        showToast(`Standardized all ${totalRecords.toLocaleString()} records with High Confidence!`, 'success');
-    }
-
-    // --- VIEW NM TAXONOMY MODAL ---
     function renderTaxonomyView() {
         if (!el.taxonomyNounList || !el.taxonomyDetailPanel) return;
         el.taxonomyNounList.innerHTML = '';
@@ -6560,102 +6246,18 @@ function renderOpenAiTableRows(item, aiResult) {
     // 7C. LIBRARY TABLE AI SUGGESTION GENERATOR & INLINE ACCORDION DRAWER
     // ==========================================================================
     function generateTop10LibrarySuggestions(description, item) {
-        const d = (description || '').trim();
-        const dUpper = d.toUpperCase();
-
-        // 1. Strict exact match for Torque Wrench (100% matches corporate reference specification)
-        if (dUpper.includes('TORQUE WRENCH') || (dUpper.includes('WRENCH') && dUpper.includes('TORQUE'))) {
-            return [
-                { noun: 'WRENCH', modifier: 'TORQUE', accuracy: 95 },
-                { noun: 'TOOL', modifier: 'TORQUE', accuracy: 84 },
-                { noun: 'WRENCH', modifier: 'HAND', accuracy: 73 },
-                { noun: 'TOOL', modifier: 'HAND', accuracy: 72 },
-                { noun: 'WRENCH', modifier: 'ADJUSTABLE', accuracy: 71 },
-                { noun: 'WRENCH', modifier: 'CALIBRATED', accuracy: 70 },
-                { noun: 'TOOL', modifier: 'CALIBRATED', accuracy: 44 },
-                { noun: 'WRENCH', modifier: 'MEASURING', accuracy: 43 },
-                { noun: 'TOOL', modifier: 'MEASURING', accuracy: 42 },
-                { noun: 'WRENCH', modifier: 'MECHANICAL', accuracy: 41 }
-            ];
+        const aiResult = analyzeRecordWithAI(item || { description });
+        if (aiResult && Array.isArray(aiResult.suggestions) && aiResult.suggestions.length > 0) {
+            return aiResult.suggestions;
         }
-
-        // 2. Intelligent Dynamic Library Table Analyzer for all catalog records
-        const tokens = dUpper.replace(/[^A-Z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length > 2);
-        const pairScores = new Map();
-        const accuracies = [95, 84, 73, 72, 71, 70, 44, 43, 42, 41];
-
-        // Priority 1: Primary Taxonomy classification
-        const classified = classifyWithLibraryTaxonomy(d);
-        const primeNoun = (item && item.noun && item.noun !== '--') ? item.noun : classified.noun;
-        const primeMod = (item && item.modifier && item.modifier !== '--') ? item.modifier : classified.modifier;
-
-        if (primeNoun) {
-            pairScores.set(primeNoun + '|||' + (primeMod || 'STANDARD'), 800);
-        }
-
-        // Priority 2: Taxonomy modifiers for primary noun
-        if (TAXONOMY_DATA[primeNoun] && TAXONOMY_DATA[primeNoun].modifiers) {
-            TAXONOMY_DATA[primeNoun].modifiers.forEach((m, idx) => {
-                const mName = (m.name || m).toUpperCase();
-                if (mName !== primeMod) {
-                    pairScores.set(primeNoun + '|||' + mName, 500 - (idx * 20));
-                }
-            });
-        }
-
-        // Priority 3: Library Catalog matches from Sheet1.csv
-        if (Array.isArray(LIBRARY_CATALOG_RECORDS)) {
-            LIBRARY_CATALOG_RECORDS.slice(0, 3500).forEach(row => {
-                if (!row.Noun || !row.Modifier || row.Noun === '--' || row.Modifier === '--') return;
-                const n = row.Noun.toUpperCase().trim();
-                const m = row.Modifier.toUpperCase().trim();
-                if (n === 'MATERIAL' && m === 'STANDARD') return;
-
-                let score = 0;
-                tokens.forEach(tok => {
-                    if (n === tok) score += 25;
-                    else if (n.includes(tok)) score += 12;
-                    if (m === tok) score += 20;
-                    else if (m.includes(tok)) score += 10;
-                });
-
-                if (score > 0) {
-                    const key = n + '|||' + m;
-                    pairScores.set(key, (pairScores.get(key) || 0) + score);
-                }
-            });
-        }
-
-        // Complementary engineering fallbacks to guarantee 10 rich candidates
-        const fallbackMods = ['STANDARD', 'CALIBRATED', 'HEAVY DUTY', 'INDUSTRIAL', 'MECHANICAL', 'ELECTRICAL', 'ASSEMBLY', 'COMPONENT', 'PRECISION', 'MEASURING', 'HAND', 'AUTOMATIC'];
-        let fIdx = 0;
-        while (pairScores.size < 10 && fIdx < fallbackMods.length) {
-            pairScores.set((primeNoun || 'MATERIAL') + '|||' + fallbackMods[fIdx], 60 - fIdx);
-            fIdx++;
-        }
-
-        const sorted = Array.from(pairScores.entries())
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 10);
-
-        return sorted.map(([k], idx) => {
-            const [noun, modifier] = k.split('|||');
-            return {
-                noun,
-                modifier,
-                accuracy: accuracies[idx] !== undefined ? accuracies[idx] : Math.max(35, 95 - (idx * 6))
-            };
-        });
+        return [
+            { rank: 1, noun: 'EQUIPMENT', modifier: 'INDUSTRIAL', accuracy: 85, confidence: 'HIGH', oem: 'NON OEM', isTop: true }
+        ];
     }
+    function renderAssignTableRows(item, suggestions) {
+        if (!suggestions || !Array.isArray(suggestions)) return '';
 
-    function buildExpandedAiRow(item) {
-        const suggestions = generateTop10LibrarySuggestions(item.description, item);
-        const { oemLabel, nounVal, modVal } = getItemNounAndModDisplay(item, suggestions);
-        const tr = document.createElement('tr');
-        tr.id = `expanded-row-${item.sno}`;
-        tr.className = 'expanded-ai-row';
-
-        const sugRows = suggestions.map((sug, idx) => {
+        return suggestions.map((sug, idx) => {
             const num = idx + 1;
             const colorClass = sug.accuracy >= 80 ? 'acc-green' : sug.accuracy >= 70 ? 'acc-orange' : 'acc-red';
             const isCurrentlyApplied = (
@@ -6668,13 +6270,16 @@ function renderOpenAiTableRows(item, aiResult) {
             );
 
             return `
-                <tr class="${isCurrentlyApplied ? 'sug-applied' : ''}">
-                    <td class="col-sug-num">${num}</td>
+                <tr class="${isCurrentlyApplied ? 'sug-applied' : ''}" title="${escapeHtml(sug.reason || '')} [Basis: ${escapeHtml(sug.classification_basis || 'TAXONOMY')}]">
+                    <td class="col-sug-num">
+                        ${num}
+                        ${sug.isTop ? `<span class="top-ai-star" title="Top Recommendation">TOP</span>` : ''}
+                    </td>
                     <td class="col-sug-noun"><strong>${escapeHtml(sug.noun)}</strong></td>
                     <td class="col-sug-mod">${escapeHtml(sug.modifier)}</td>
                     <td class="col-sug-oem">
-                        <span class="oem-status-pill ${item.oem === 'OEM' ? 'oem-pill-yes' : 'oem-pill-non'}">
-                            ${escapeHtml(item.oem || 'NON OEM')}
+                        <span class="oem-status-pill ${(sug.oem || item.oem) === 'OEM' ? 'oem-pill-yes' : 'oem-pill-non'}">
+                            ${escapeHtml(sug.oem || item.oem || 'NON OEM')}
                         </span>
                     </td>
                     <td class="col-sug-acc">
@@ -6683,6 +6288,7 @@ function renderOpenAiTableRows(item, aiResult) {
                                 <div class="sug-acc-fill ${colorClass}" style="width: ${sug.accuracy}%;"></div>
                             </div>
                             <span class="sug-acc-val ${colorClass}">${sug.accuracy}%</span>
+                            <span class="sug-conf-badge conf-${(sug.confidence || 'HIGH').toLowerCase().replace('_', '-')}">${escapeHtml((sug.confidence || 'HIGH').replace('_', ' '))}</span>
                         </div>
                     </td>
                     <td class="col-sug-act">
@@ -6692,6 +6298,7 @@ function renderOpenAiTableRows(item, aiResult) {
                                     data-sno="${item.sno}" 
                                     data-noun="${escapeHtml(sug.noun)}" 
                                     data-mod="${escapeHtml(sug.modifier)}" 
+                                    data-oem="${escapeHtml(sug.oem || item.oem || 'NON OEM')}" 
                                     title="Apply this Noun &amp; Modifier">
                                 <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                     <polyline points="20 6 9 17 4 12"></polyline>
@@ -6714,6 +6321,36 @@ function renderOpenAiTableRows(item, aiResult) {
                 </tr>
             `;
         }).join('');
+    }
+
+    function renderAssignDrawerContent(item) {
+        const tr = document.getElementById(`expanded-row-${item.sno}`);
+        if (!tr) return;
+
+        const suggestions = generateTop10LibrarySuggestions(item.description, item);
+        const { oemLabel, nounVal, modVal } = getItemNounAndModDisplay(item, suggestions);
+
+        const nounEl = document.getElementById(`assignNounVal-${item.sno}`);
+        if (nounEl) nounEl.textContent = nounVal;
+        const modEl = document.getElementById(`assignModVal-${item.sno}`);
+        if (modEl) modEl.textContent = modVal;
+        const oemEl = tr.querySelector('.prompt-oem-badge-clickable');
+        if (oemEl) oemEl.textContent = oemLabel;
+
+        const tbody = tr.querySelector('.ai-suggestions-table tbody');
+        if (tbody) {
+            tbody.innerHTML = renderAssignTableRows(item, suggestions);
+        }
+    }
+
+    function buildExpandedAiRow(item) {
+        const suggestions = generateTop10LibrarySuggestions(item.description, item);
+        const { oemLabel, nounVal, modVal } = getItemNounAndModDisplay(item, suggestions);
+        const tr = document.createElement('tr');
+        tr.id = `expanded-row-${item.sno}`;
+        tr.className = 'expanded-ai-row';
+
+        const sugRows = renderAssignTableRows(item, suggestions);
 
         tr.innerHTML = `
             <td colspan="7" class="expanded-ai-cell">
@@ -6735,7 +6372,7 @@ function renderOpenAiTableRows(item, aiResult) {
                                         <svg class="ai-robot-icon" viewBox="0 0 24 24" width="14" height="14" fill="#6366f1">
                                             <path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.38-1 1.72V7h2a3 3 0 0 1 3 3v1h1a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-1v1a3 3 0 0 1-3 3h-2v1.28c.6.34 1 .98 1 1.72a2 2 0 1 1-4 0c0-.74.4-1.38 1-1.72V20h-2a3 3 0 0 1-3-3v-1H4a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h1v-1a3 3 0 0 1 3-3h2V5.72c-.6-.34-1-.98-1-1.72a2 2 0 0 1 2-2zm-3 8a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm6 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm-6 5h6v1.5H9V15z"/>
                                         </svg>
-                                        AI Suggested Nouns &amp; Modifiers
+                                        Suggested Nouns &amp; Modifiers
                                     </span>
                                 </div>
                             </div>
@@ -6763,8 +6400,7 @@ function renderOpenAiTableRows(item, aiResult) {
         `;
         return tr;
     }
-
-    function expandInlineAssign(sno, isDirectRender = false) {
+function expandInlineAssign(sno, isDirectRender = false) {
         const parentTr = document.getElementById(`row-${sno}`);
         if (!parentTr) return;
 
@@ -6824,6 +6460,8 @@ function renderOpenAiTableRows(item, aiResult) {
         if (!expandedTr) {
             expandedTr = buildExpandedAiRow(item);
             parentTr.after(expandedTr);
+        } else {
+            renderAssignDrawerContent(item);
         }
 
         if (isDirectRender) {
@@ -6900,7 +6538,7 @@ function renderOpenAiTableRows(item, aiResult) {
         }
     }
 
-    function applyLibrarySuggestion(sno, noun, modifier) {
+    function applyLibrarySuggestion(sno, noun, modifier, oem = null) {
         const item = state.allRecords.find(r => r.sno === sno);
         if (!item) return;
 
@@ -6908,6 +6546,9 @@ function renderOpenAiTableRows(item, aiResult) {
         item.modifier = modifier;
         item.nounModifier = (modifier && modifier !== '--') ? `${noun}|${modifier}` : noun;
         item.nmStatus = 'ASSIGNED';
+        if (oem && oem !== '--') {
+            item.oem = oem;
+        }
         state.hasUnsavedChanges = true;
 
         updateStatsCounters();
@@ -6925,20 +6566,29 @@ function renderOpenAiTableRows(item, aiResult) {
                     ? `<span class="modifier-badge badge-updated-flash"><span class="nm-noun">${escapeHtml(noun)}</span><span class="nm-sep">|</span><span class="nm-mod">${escapeHtml(modifier)}</span></span>`
                     : `<span class="modifier-badge modifier-pending">--</span>`;
             }
+            if (oem && oem !== '--') {
+                const oemSelect = parentTr.querySelector('.oem-badge-select');
+                if (oemSelect) {
+                    oemSelect.value = oem;
+                    oemSelect.classList.remove('oem-badge-yes', 'oem-badge-non', 'oem-badge-pending');
+                    if (oem === 'OEM') oemSelect.classList.add('oem-badge-yes');
+                    else oemSelect.classList.add('oem-badge-non');
+                }
+            }
         }
 
         // Update drawer header values
         const assignNounEl = document.getElementById(`assignNounVal-${sno}`);
         if (assignNounEl) assignNounEl.textContent = noun;
         const assignModEl = document.getElementById(`assignModVal-${sno}`);
-        if (assignModEl) assignModEl.textContent = `|${modifier}`;
+        if (assignModEl) assignModEl.textContent = modifier;
 
         // Highlight applied suggestion inside the drawer
         const drawerTr = document.getElementById(`expanded-row-${sno}`);
         if (drawerTr) {
             const rows = drawerTr.querySelectorAll('.ai-suggestions-table tbody tr');
             rows.forEach(r => {
-                const rNoun = r.querySelector('.col-sug-noun')?.textContent?.trim();
+                const rNoun = r.querySelector('.col-sug-noun strong')?.textContent?.trim() || r.querySelector('.col-sug-noun')?.textContent?.trim();
                 const rMod = r.querySelector('.col-sug-mod')?.textContent?.trim();
                 const applyBtn = r.querySelector('.btn-sug-apply');
 
@@ -7547,19 +7197,13 @@ function renderOpenAiTableRows(item, aiResult) {
             const openaiNounEl = document.getElementById(`openaiNounVal-${sno}`);
             if (openaiNounEl && (!item.noun || item.noun === '--')) openaiNounEl.textContent = newAiResult.noun;
             const openaiModEl = document.getElementById(`openaiModVal-${sno}`);
-            if (openaiModEl && (!item.modifier || item.modifier === '--')) openaiModEl.textContent = `|${newAiResult.modifier}`;
+            if (openaiModEl && (!item.modifier || item.modifier === '--')) openaiModEl.textContent = newAiResult.modifier;
         }
 
-        // Update Assign sub-table OEM pills if open
+        // Update Assign sub-table if open
         const assignRow = document.getElementById(`expanded-row-${sno}`);
         if (assignRow) {
-            const pills = assignRow.querySelectorAll('.oem-status-pill');
-            pills.forEach(p => {
-                p.textContent = nextOem;
-                p.classList.remove('oem-pill-yes', 'oem-pill-non');
-                if (nextOem === 'OEM') p.classList.add('oem-pill-yes');
-                else p.classList.add('oem-pill-non');
-            });
+            renderAssignDrawerContent(item);
         }
 
         updateStatsCounters();
@@ -7584,7 +7228,8 @@ function renderOpenAiTableRows(item, aiResult) {
                 const oem = applySugBtn.getAttribute('data-oem');
                 applyOpenAiSuggestion(sno, noun, mod, oem);
             } else {
-                applyLibrarySuggestion(sno, noun, mod);
+                const oem = applySugBtn.getAttribute('data-oem');
+                applyLibrarySuggestion(sno, noun, mod, oem);
             }
             return;
         }
