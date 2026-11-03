@@ -7483,18 +7483,29 @@
 
     el.bulkBtnAI.addEventListener('click', () => {
         const count = state.selectedSnoList.size;
+        if (count === 0) {
+            showToast('Please select at least one record to enrich with AI.', 'warning');
+            return;
+        }
+
         state.selectedSnoList.forEach(sno => {
             const rec = state.allRecords.find(r => r.sno === sno);
-            if (rec && rec.modifier === '--') {
-                const desc = rec.description.toUpperCase();
-                if (desc.includes('TORQUE')) rec.modifier = 'TORQUE';
-                else if (desc.includes('OPEN END')) rec.modifier = 'OPEN END';
-                else if (desc.includes('ADJUSTABLE')) rec.modifier = 'ADJUSTABLE';
-                else if (desc.includes('HAMMERING')) rec.modifier = 'HAMMERING';
-                else rec.modifier = 'STANDARD';
+            if (rec) {
+                const aiResult = analyzeRecordWithAI(rec);
+                if (aiResult && aiResult.noun) {
+                    rec.noun = aiResult.noun;
+                    rec.modifier = aiResult.modifier || '--';
+                    rec.nounModifier = (rec.modifier && rec.modifier !== '--') ? `${rec.noun}|${rec.modifier}` : rec.noun;
+                    rec.nmStatus = 'ASSIGNED';
+                    if (aiResult.oem && (!rec.oem || rec.oem === '--')) {
+                        rec.oem = aiResult.oem;
+                    }
+                }
             }
         });
+
         localStorage.setItem(CACHE_KEY, JSON.stringify(state.allRecords));
+        updateStatsCounters();
         showToast(`AI enriched ${count} selected records successfully!`, 'success');
         applyFilters();
     });
