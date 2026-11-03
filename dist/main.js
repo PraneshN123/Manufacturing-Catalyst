@@ -7392,33 +7392,31 @@ function expandInlineAssign(sno, isDirectRender = false) {
                                     <button type="button" class="btn-template-tab ${activeTpl === 1 ? 'active-template' : ''}" data-action="switch-template" data-sno="${item.sno}" data-tpl="1">Template 1</button>
                                     <button type="button" class="btn-template-tab ${activeTpl === 2 ? 'active-template' : ''}" data-action="switch-template" data-sno="${item.sno}" data-tpl="2">Template 2</button>
                                     
-                                    <!-- Step 1: By default ONLY Analyse shows -->
-                                    <button type="button" class="btn-prompt-analyse ${isAnalysed ? 'btn-prompt-reanalyse' : ''}" data-action="analyse-prompt" data-sno="${item.sno}" title="${isAnalysed ? 'Re-Analyse Specification' : 'Step 1: Analyse Specification'}">
-                                        <svg class="sparkle-icon" viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
-                                            <path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z"/>
-                                        </svg>
-                                        <span>${isAnalysed ? 'Re-Analyse' : 'Analyse'}</span>
-                                    </button>
-
-                                    <!-- Step 2: Validate shows only after Analyse -->
-                                    ${isAnalysed ? `
+                                    ${!isAnalysed ? `
+                                        <!-- Step 1: By default ONLY Analyse shows -->
+                                        <button type="button" class="btn-prompt-analyse" data-action="analyse-prompt" data-sno="${item.sno}" title="Step 1: Analyse Specification">
+                                            <svg class="sparkle-icon" viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
+                                                <path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z"/>
+                                            </svg>
+                                            <span>Analyse</span>
+                                        </button>
+                                    ` : (!isValidated ? `
+                                        <!-- Step 2: After analyse ONLY Validate shows -->
                                         <button type="button" class="btn-prompt-validate" data-action="validate-prompt" data-sno="${item.sno}" title="Step 2: Validate &amp; Standardize Attributes">
                                             <svg class="validate-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                                 <polyline points="20 6 9 17 4 12"></polyline>
                                             </svg>
                                             <span>Validate</span>
                                         </button>
-                                    ` : ''}
-
-                                    <!-- Step 3: Submit shows only after Validate -->
-                                    ${isValidated ? `
+                                    ` : `
+                                        <!-- Step 3: At last there should be ONLY submit button -->
                                         <button type="button" class="btn-prompt-submit" data-action="submit-prompt" data-sno="${item.sno}" title="Submit Final Specification">
                                             <svg class="submit-icon" viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
                                                 <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
                                             </svg>
                                             <span>Submit</span>
                                         </button>
-                                    ` : ''}
+                                    `)}
                                 </div>
                             </div>
 
@@ -7754,46 +7752,22 @@ function expandInlineAssign(sno, isDirectRender = false) {
             inputs.forEach(input => {
                 const attrName = input.getAttribute('data-attr');
                 const val = input.value.trim();
+                if (!item.manualAttributes) item.manualAttributes = {};
+                if (!item.attributes) item.attributes = {};
                 if (val) {
-                    if (!item.manualAttributes) item.manualAttributes = {};
-                    if (!item.attributes) item.attributes = {};
                     item.manualAttributes[attrName] = val;
                     item.attributes[attrName] = val;
+                } else {
+                    delete item.manualAttributes[attrName];
+                    delete item.attributes[attrName];
                 }
             });
-        }
 
-        item.isSubmitted = true;
-        item.nmStatus = 'VERIFIED';
-        state.hasUnsavedChanges = true;
-
-        const parentTr = document.getElementById(`row-${sno}`);
-        if (parentTr) {
-            const statusCell = parentTr.querySelector('.cell-status');
-            if (statusCell) statusCell.innerHTML = '<span class="status-badge status-verified">VERIFIED</span>';
-        }
-
-        updateStatsCounters();
-        showToast(`✓ Specification attributes for #${sno} submitted successfully!`, 'success');
-    }
-
-    function handleSubmitPromptAttributes(sno) {
-        const item = state.allRecords.find(r => r.sno === sno);
-        if (!item) return;
-
-        const drawerTr = document.getElementById(`expanded-prompt-row-${sno}`);
-        if (drawerTr) {
-            const inputs = drawerTr.querySelectorAll('.prompt-manual-input');
-            inputs.forEach(input => {
-                const attrName = input.getAttribute('data-attr');
-                const val = input.value.trim();
-                if (val) {
-                    if (!item.manualAttributes) item.manualAttributes = {};
-                    if (!item.attributes) item.attributes = {};
-                    item.manualAttributes[attrName] = val;
-                    item.attributes[attrName] = val;
-                }
-            });
+            const submitBtn = drawerTr.querySelector('.btn-prompt-submit');
+            if (submitBtn) {
+                submitBtn.classList.add('extracted-flash');
+                setTimeout(() => submitBtn.classList.remove('extracted-flash'), 1000);
+            }
         }
 
         item.isSubmitted = true;
