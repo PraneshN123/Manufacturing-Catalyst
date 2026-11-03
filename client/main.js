@@ -7270,36 +7270,10 @@ function expandInlineAssign(sno, isDirectRender = false) {
         if (!item.manualAttributes) item.manualAttributes = {};
         if (!item.attributes) item.attributes = {};
 
-        // Auto-extract description on initial open if not yet populated
-        const descVal = (item.description || item.Discription || '').trim();
-        if (descVal && Object.keys(item.apiExtractedAttributes).length === 0) {
-            const normN = (item.noun && item.noun !== '--' && item.noun !== 'PENDING') ? item.noun : 'MATERIAL';
-            const normM = (item.modifier && item.modifier !== '--' && item.modifier !== 'PENDING') ? item.modifier : 'STANDARD';
-            const oemSt = item.oem || 'NON OEM';
-            const extracted = extractAttributesFromDesc(descVal, normN, normM, oemSt);
-
-            // Row 5: SHORT description (e.g. Insulated Torque Wrench)
-            const shortRaw = descVal.split(',')[0].trim();
-            item.apiExtractedAttributes['EXISTING ITEM DESCRIPTION ( SHORT)'] = shortRaw;
-            item.validatedAttributes['EXISTING ITEM DESCRIPTION ( SHORT)'] = shortRaw.toUpperCase();
-            item.manualAttributes['EXISTING ITEM DESCRIPTION ( SHORT)'] = shortRaw.toUpperCase();
-
-            // Row 6: LONG description (e.g. Insulated Torque Wrench,3/8" Dia,10"L)
-            item.apiExtractedAttributes['EXISTING ITEM DESCRIPTION ( LONG)'] = descVal;
-            item.validatedAttributes['EXISTING ITEM DESCRIPTION ( LONG)'] = descVal.toUpperCase();
-            item.manualAttributes['EXISTING ITEM DESCRIPTION ( LONG)'] = descVal.toUpperCase();
-
-            // Merge all other extracted attributes
-            for (const [k, v] of Object.entries(extracted)) {
-                if (k !== 'EXISTING ITEM DESCRIPTION ( SHORT)' && k !== 'EXISTING ITEM DESCRIPTION ( LONG)') {
-                    item.apiExtractedAttributes[k] = v;
-                    item.validatedAttributes[k] = String(v).toUpperCase();
-                    if (item.manualAttributes[k] === undefined) {
-                        item.manualAttributes[k] = String(v).toUpperCase();
-                    }
-                }
-            }
-        }
+        // Initial state: columns start clean. 
+        // 1st: Only Analyse populates API Extracted Value
+        // After that: Validate populates Validated Value and initializes Manual Value
+        // And then: User manually edits or reviews Manual Value
 
         // For NON OEM records, pre-populate standard master fields if not explicitly edited
         if (item.oem !== 'OEM') {
@@ -7394,13 +7368,19 @@ function expandInlineAssign(sno, isDirectRender = false) {
                                 <div class="prompt-header-right">
                                     <button type="button" class="btn-template-tab ${activeTpl === 1 ? 'active-template' : ''}" data-action="switch-template" data-sno="${item.sno}" data-tpl="1">Template 1</button>
                                     <button type="button" class="btn-template-tab ${activeTpl === 2 ? 'active-template' : ''}" data-action="switch-template" data-sno="${item.sno}" data-tpl="2">Template 2</button>
-                                    <button type="button" class="btn-prompt-analyse btn-prompt-reanalyse" data-action="reanalyse-prompt" data-sno="${item.sno}" title="Re-Analyse Specification Attributes">
+                                    <button type="button" class="btn-prompt-analyse" data-action="analyse-prompt" data-sno="${item.sno}" title="Step 1: Extract API Attributes">
                                         <svg class="sparkle-icon" viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
                                             <path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z"/>
                                         </svg>
-                                        <span>Re-Analyse</span>
+                                        <span>${item.isAnalysed ? 'Re-Analyse' : 'Analyse'}</span>
                                     </button>
-                                    <button type="button" class="btn-prompt-submit" data-action="submit-prompt" data-sno="${item.sno}" title="Submit &amp; Save Attributes">
+                                    <button type="button" class="btn-prompt-validate" data-action="validate-prompt" data-sno="${item.sno}" title="Step 2: Validate &amp; Standardize Attributes">
+                                        <svg class="validate-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                            <polyline points="20 6 9 17 4 12"></polyline>
+                                        </svg>
+                                        <span>Validate</span>
+                                    </button>
+                                    <button type="button" class="btn-prompt-submit" data-action="submit-prompt" data-sno="${item.sno}" title="Step 3/Final: Submit Specification">
                                         <svg class="submit-icon" viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
                                             <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
                                         </svg>
@@ -7601,50 +7581,49 @@ function expandInlineAssign(sno, isDirectRender = false) {
         showToast(`Switched to Template ${tplNum}`, 'info');
     }
 
-    function handleReAnalysePromptAttributes(sno) {
+    // ==========================================================================
+    // 3-STAGE PIPELINE: 1st ONLY ANALYSE -> AFTER THAT VALIDATE -> AND THEN MANUAL
+    // ==========================================================================
+
+    // STAGE 1: 1st only the analyse (populates API EXTRACTED VALUE only)
+    function handleAnalysePromptAttributes(sno) {
         const item = state.allRecords.find(r => r.sno === sno);
         if (!item) return;
 
         const desc = (item.description || item.Discription || '').trim();
         const normNoun = (item.noun && item.noun !== '--' && item.noun !== 'PENDING') 
             ? item.noun 
-            : (classifyWithLibraryTaxonomy(desc).noun || 'WRENCH');
+            : (classifyWithLibraryTaxonomy(desc).noun || 'MATERIAL');
         const normMod = (item.modifier && item.modifier !== '--' && item.modifier !== 'PENDING') 
             ? item.modifier 
-            : (classifyWithLibraryTaxonomy(desc).modifier || 'TORQUE');
+            : (classifyWithLibraryTaxonomy(desc).modifier || 'STANDARD');
         const oemStatus = item.oem || 'NON OEM';
 
         const extracted = extractAttributesFromDesc(desc, normNoun, normMod, oemStatus);
 
         if (!item.apiExtractedAttributes) item.apiExtractedAttributes = {};
-        if (!item.validatedAttributes) item.validatedAttributes = {};
-        if (!item.manualAttributes) item.manualAttributes = {};
-        if (!item.attributes) item.attributes = {};
+        // Clear previous validated & manual on re-analyse so 3-stage progression is pristine
+        item.validatedAttributes = {};
+        item.manualAttributes = {};
 
-        // Row 5: SHORT description
+        // Row 5: SHORT description (raw extraction)
         const shortRaw = desc.split(',')[0].trim();
         item.apiExtractedAttributes['EXISTING ITEM DESCRIPTION ( SHORT)'] = shortRaw;
-        item.validatedAttributes['EXISTING ITEM DESCRIPTION ( SHORT)'] = shortRaw.toUpperCase();
-        item.manualAttributes['EXISTING ITEM DESCRIPTION ( SHORT)'] = shortRaw.toUpperCase();
 
-        // Row 6: LONG description
+        // Row 6: LONG description (raw extraction)
         item.apiExtractedAttributes['EXISTING ITEM DESCRIPTION ( LONG)'] = desc;
-        item.validatedAttributes['EXISTING ITEM DESCRIPTION ( LONG)'] = desc.toUpperCase();
-        item.manualAttributes['EXISTING ITEM DESCRIPTION ( LONG)'] = desc.toUpperCase();
 
-        // Populate API extracted and validated values
+        // Merge raw extracted attributes into apiExtractedAttributes ONLY
         for (const [k, v] of Object.entries(extracted)) {
             if (k !== 'EXISTING ITEM DESCRIPTION ( SHORT)' && k !== 'EXISTING ITEM DESCRIPTION ( LONG)') {
                 item.apiExtractedAttributes[k] = v;
-                item.validatedAttributes[k] = String(v).toUpperCase();
-                if (item.manualAttributes[k] === undefined || item.manualAttributes[k] === '') {
-                    item.manualAttributes[k] = String(v).toUpperCase();
-                }
-                item.attributes[k] = item.manualAttributes[k];
             }
         }
 
-        // Update DOM cells with flash animation
+        item.isAnalysed = true;
+        item.isValidated = false;
+
+        // Update DOM: Col 3 (API EXTRACTED) gets values & flashes; Col 4 gets '--'; Col 5 gets empty placeholder
         const drawerTr = document.getElementById(`expanded-prompt-row-${sno}`);
         let count = 0;
         if (drawerTr) {
@@ -7652,40 +7631,141 @@ function expandInlineAssign(sno, isDirectRender = false) {
             rows.forEach(tr => {
                 const attrName = tr.getAttribute('data-attr-name');
                 const apiVal = getAttrValueCaseInsensitive(item.apiExtractedAttributes, attrName);
-                const valVal = getAttrValueCaseInsensitive(item.validatedAttributes, attrName);
-                const manVal = getAttrValueCaseInsensitive(item.manualAttributes, attrName);
 
                 const apiEl = tr.querySelector('.prompt-val-text-api');
-                if (apiEl && apiVal) {
-                    apiEl.textContent = apiVal;
-                    apiEl.classList.add('extracted-flash');
-                    setTimeout(() => apiEl.classList.remove('extracted-flash'), 1200);
+                if (apiEl) {
+                    apiEl.textContent = apiVal || '--';
+                    if (apiVal) {
+                        apiEl.classList.add('extracted-flash');
+                        setTimeout(() => apiEl.classList.remove('extracted-flash'), 1200);
+                        count++;
+                    }
                 }
 
                 const valEl = tr.querySelector('.prompt-val-text-validated');
-                if (valEl && valVal) {
-                    valEl.textContent = valVal;
-                    valEl.classList.add('extracted-flash');
-                    setTimeout(() => valEl.classList.remove('extracted-flash'), 1200);
+                if (valEl) {
+                    valEl.textContent = '--';
                 }
 
                 const manInput = tr.querySelector('.prompt-manual-input');
-                if (manInput && (manVal || valVal)) {
-                    manInput.value = manVal || valVal;
+                if (manInput) {
+                    manInput.value = '';
+                    manInput.placeholder = 'Enter value...';
+                }
+            });
+
+            const analyseBtnSpan = drawerTr.querySelector('.btn-prompt-analyse span');
+            if (analyseBtnSpan) analyseBtnSpan.textContent = 'Re-Analyse';
+        }
+
+        state.hasUnsavedChanges = true;
+        showToast(`✦ Step 1 Complete: Extracted ${count} attributes into API Extracted Value. Now click Validate.`, 'info');
+    }
+
+    const handleReAnalysePromptAttributes = handleAnalysePromptAttributes;
+
+    // STAGE 2: After that validate (populates VALIDATED VALUE and initializes MANUAL VALUE)
+    function handleValidatePromptAttributes(sno) {
+        const item = state.allRecords.find(r => r.sno === sno);
+        if (!item) return;
+
+        const desc = (item.description || item.Discription || '').trim();
+
+        // If not yet analysed, run analyse first
+        if (!item.apiExtractedAttributes || Object.keys(item.apiExtractedAttributes).length === 0) {
+            handleAnalysePromptAttributes(sno);
+        }
+
+        if (!item.validatedAttributes) item.validatedAttributes = {};
+        if (!item.manualAttributes) item.manualAttributes = {};
+
+        // Standardize all extracted attributes into uppercase and clean format
+        for (const [k, v] of Object.entries(item.apiExtractedAttributes)) {
+            if (v && v !== '--') {
+                const stdVal = String(v).toUpperCase().trim();
+                item.validatedAttributes[k] = stdVal;
+                // Pre-fill manual value with validated value as default recommendation
+                item.manualAttributes[k] = stdVal;
+                item.attributes[k] = stdVal;
+            }
+        }
+
+        // Standardize short & long descriptions
+        const shortRaw = desc.split(',')[0].trim();
+        item.validatedAttributes['EXISTING ITEM DESCRIPTION ( SHORT)'] = shortRaw.toUpperCase();
+        item.validatedAttributes['EXISTING ITEM DESCRIPTION ( LONG)'] = desc.toUpperCase();
+        item.manualAttributes['EXISTING ITEM DESCRIPTION ( SHORT)'] = shortRaw.toUpperCase();
+        item.manualAttributes['EXISTING ITEM DESCRIPTION ( LONG)'] = desc.toUpperCase();
+
+        item.isValidated = true;
+
+        // Update DOM: Col 4 (VALIDATED) and Col 5 (MANUAL) get populated with flash glow!
+        const drawerTr = document.getElementById(`expanded-prompt-row-${sno}`);
+        let count = 0;
+        if (drawerTr) {
+            const rows = drawerTr.querySelectorAll('tr[data-attr-name]');
+            rows.forEach(tr => {
+                const attrName = tr.getAttribute('data-attr-name');
+                const valVal = getAttrValueCaseInsensitive(item.validatedAttributes, attrName);
+                const manVal = getAttrValueCaseInsensitive(item.manualAttributes, attrName);
+
+                const valEl = tr.querySelector('.prompt-val-text-validated');
+                if (valEl) {
+                    valEl.textContent = valVal || '--';
+                    if (valVal) {
+                        valEl.classList.add('extracted-flash');
+                        setTimeout(() => valEl.classList.remove('extracted-flash'), 1200);
+                        count++;
+                    }
+                }
+
+                const manInput = tr.querySelector('.prompt-manual-input');
+                if (manInput && manVal) {
+                    manInput.value = manVal;
                     manInput.classList.add('extracted-flash');
                     setTimeout(() => manInput.classList.remove('extracted-flash'), 1200);
-                    count++;
                 }
             });
         }
 
         state.hasUnsavedChanges = true;
         updateStatsCounters();
-        showToast(`✨ Re-Analysed #${sno}: Updated ${count} attribute values`, 'success');
+        showToast(`✓ Step 2 Complete: Validated ${count} attributes. You can now adjust Manual Values.`, 'success');
     }
 
-    const handleValidatePromptAttributes = handleReAnalysePromptAttributes;
-    const handleAnalysePromptAttributes = handleReAnalysePromptAttributes;
+    // STAGE 4: Final Submit (saves manual and validated values)
+    function handleSubmitPromptAttributes(sno) {
+        const item = state.allRecords.find(r => r.sno === sno);
+        if (!item) return;
+
+        const drawerTr = document.getElementById(`expanded-prompt-row-${sno}`);
+        if (drawerTr) {
+            const inputs = drawerTr.querySelectorAll('.prompt-manual-input');
+            inputs.forEach(input => {
+                const attrName = input.getAttribute('data-attr');
+                const val = input.value.trim();
+                if (val) {
+                    if (!item.manualAttributes) item.manualAttributes = {};
+                    if (!item.attributes) item.attributes = {};
+                    item.manualAttributes[attrName] = val;
+                    item.attributes[attrName] = val;
+                }
+            });
+        }
+
+        item.isSubmitted = true;
+        item.nmStatus = 'VERIFIED';
+        state.hasUnsavedChanges = true;
+
+        const parentTr = document.getElementById(`row-${sno}`);
+        if (parentTr) {
+            const statusCell = parentTr.querySelector('.cell-status');
+            if (statusCell) statusCell.innerHTML = '<span class="status-badge status-verified">VERIFIED</span>';
+        }
+
+        updateStatsCounters();
+        showToast(`✓ Specification attributes for #${sno} submitted successfully!`, 'success');
+    }
 
     function handleSubmitPromptAttributes(sno) {
         const item = state.allRecords.find(r => r.sno === sno);
@@ -7874,15 +7954,23 @@ function expandInlineAssign(sno, isDirectRender = false) {
             return;
         }
 
-        // 8. Prompt Drawer: Re-Analyse button
-        const reanalysePromptBtn = e.target.closest('[data-action="reanalyse-prompt"], [data-action="validate-prompt"], [data-action="analyse-prompt"]');
-        if (reanalysePromptBtn) {
-            const sno = parseInt(reanalysePromptBtn.getAttribute('data-sno'), 10);
-            handleReAnalysePromptAttributes(sno);
+        // 8. Prompt Drawer: Step 1 - Analyse button
+        const analysePromptBtn = e.target.closest('[data-action="analyse-prompt"], [data-action="reanalyse-prompt"]');
+        if (analysePromptBtn) {
+            const sno = parseInt(analysePromptBtn.getAttribute('data-sno'), 10);
+            handleAnalysePromptAttributes(sno);
             return;
         }
 
-        // 8.1 Prompt Drawer: Submit button
+        // 8.1 Prompt Drawer: Step 2 - Validate button
+        const validatePromptBtn = e.target.closest('[data-action="validate-prompt"]');
+        if (validatePromptBtn) {
+            const sno = parseInt(validatePromptBtn.getAttribute('data-sno'), 10);
+            handleValidatePromptAttributes(sno);
+            return;
+        }
+
+        // 8.2 Prompt Drawer: Step 4 - Submit button
         const submitPromptBtn = e.target.closest('[data-action="submit-prompt"]');
         if (submitPromptBtn) {
             const sno = parseInt(submitPromptBtn.getAttribute('data-sno'), 10);
